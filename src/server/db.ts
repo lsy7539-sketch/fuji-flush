@@ -1,50 +1,45 @@
-import fs from "node:fs";
-import { createClient } from "@libsql/client";
+import { Pool } from "pg";
 
-// Falls back to a local SQLite file when no Turso credentials are set, so
-// `npm run dev`/`npm run server` work out of the box without an account —
-// only the real deployment needs TURSO_DATABASE_URL/TURSO_AUTH_TOKEN set.
-const usingLocalFile = !process.env.TURSO_DATABASE_URL;
-if (usingLocalFile) {
-  fs.mkdirSync("./data", { recursive: true });
-}
+// Supabase (or any Postgres) connection string. Local dev without
+// DATABASE_URL set falls back to an in-memory store (see accessCodes.ts /
+// rooms.ts) so `npm run dev`/`npm run server` still work without an
+// account — only the real deployment needs this set.
+const connectionString = process.env.DATABASE_URL;
 
-const url = process.env.TURSO_DATABASE_URL ?? "file:./data/fuji-flush.db";
-const authToken = process.env.TURSO_AUTH_TOKEN;
-
-export const db = createClient({ url, authToken });
+export const pool = connectionString
+  ? new Pool({ connectionString, ssl: { rejectUnauthorized: false } })
+  : null;
 
 export async function initDb(): Promise<void> {
-  await db.execute(`
+  if (!pool) {
+    console.warn(
+      "DATABASE_URL이 설정되지 않아 메모리에만 저장합니다 (재시작하면 초기화됨). " +
+        "실제 배포에서는 반드시 설정하세요.",
+    );
+    return;
+  }
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS access_codes (
       code TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      is_admin INTEGER NOT NULL DEFAULT 0
+      created_at BIGINT NOT NULL,
+      is_admin BOOLEAN NOT NULL DEFAULT FALSE
     )
   `);
-  // Lightweight migration for databases created before is_admin existed —
-  // SQLite has no "ADD COLUMN IF NOT EXISTS", so just ignore the "duplicate
-  // column" error when it's already there.
-  try {
-    await db.execute("ALTER TABLE access_codes ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0");
-  } catch {
-    // already migrated
-  }
-  await db.execute(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS matches (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       room_name TEXT NOT NULL,
       room_code TEXT NOT NULL,
-      started_at INTEGER NOT NULL,
-      finished_at INTEGER NOT NULL,
+      started_at BIGINT NOT NULL,
+      finished_at BIGINT NOT NULL,
       player_count INTEGER NOT NULL
     )
   `);
-  await db.execute(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS match_players (
       match_id INTEGER NOT NULL REFERENCES matches(id),
       player_name TEXT NOT NULL,
-      is_winner INTEGER NOT NULL,
+      is_winner BOOLEAN NOT NULL,
       final_hand_size INTEGER NOT NULL
     )
   `);

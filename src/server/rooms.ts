@@ -3,7 +3,7 @@ import { GameError, createGame, playCard } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import type { GameState } from "../engine/types";
 import type { ClientMessage, ServerMessage } from "../shared/protocol";
-import { db } from "./db";
+import { pool } from "./db";
 import { generateRoomCode } from "./roomCode";
 
 const MIN_PLAYERS = 3;
@@ -204,22 +204,21 @@ function handlePlayCard(socket: WebSocket, cardId: string | undefined): void {
 
 // Stats/rankings are a future feature (CLAUDE.md TODO) — this just makes
 // sure the raw data is captured as games finish, so nothing has to be
-// backfilled later.
+// backfilled later. No-op without a real DB (local dev fallback).
 async function recordMatch(room: Room): Promise<void> {
-  if (!room.state) return;
+  if (!room.state || !pool) return;
   const finishedAt = Date.now();
-  const result = await db.execute({
-    sql: `INSERT INTO matches (room_name, room_code, started_at, finished_at, player_count)
-          VALUES (?, ?, ?, ?, ?)`,
-    args: [room.name, room.code, room.startedAt ?? finishedAt, finishedAt, room.state.players.length],
-  });
-  const matchId = result.lastInsertRowid;
-  if (matchId === undefined) return;
+  const result = await pool.query(
+    `INSERT INTO matches (room_name, room_code, started_at, finished_at, player_count)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    [room.name, room.code, room.startedAt ?? finishedAt, finishedAt, room.state.players.length],
+  );
+  const matchId = result.rows[0].id;
   for (const p of room.state.players) {
-    await db.execute({
-      sql: `INSERT INTO match_players (match_id, player_name, is_winner, final_hand_size)
-            VALUES (?, ?, ?, ?)`,
-      args: [matchId, p.name, p.isWinner ? 1 : 0, p.hand.length],
-    });
+    await pool.query(
+      `INSERT INTO match_players (match_id, player_name, is_winner, final_hand_size)
+       VALUES ($1, $2, $3, $4)`,
+      [matchId, p.name, p.isWinner, p.hand.length],
+    );
   }
 }

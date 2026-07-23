@@ -19,6 +19,7 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",
@@ -26,8 +27,8 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.4",
     "express": "^5.2.1",
+    "pg": "^8.22.0",
     "ws": "^8.21.1"
   }
 }
