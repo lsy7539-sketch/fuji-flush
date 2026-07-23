@@ -3,13 +3,17 @@ import type { PlayerFacingState } from "../engine/playerView";
 
 export interface BoardCallbacks {
   message: string;
+  paused: boolean;
   onPlayCard: (playerId: string, cardId?: string) => void;
+  onBack: () => void;
+  onTogglePause: () => void;
+  onQuit: () => void;
 }
 
 export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks: BoardCallbacks): void {
   app.innerHTML = "";
   const container = document.createElement("div");
-  container.className = "board";
+  container.className = "board" + (callbacks.paused ? " paused" : "");
 
   const currentPlayerId = view.players[view.currentPlayerIndex]?.id;
   const isFinished = view.gameStatus === "FINISHED";
@@ -17,13 +21,23 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   const header = document.createElement("div");
   header.className = "header";
   header.innerHTML = `
-    <h1>Fuji Flush</h1>
+    <div class="header-top">
+      <h1>Fuji Flush</h1>
+      <div class="game-controls">
+        <button class="ctrl-btn" id="ctrl-back" title="뒤로가기" aria-label="뒤로가기">←</button>
+        <button class="ctrl-btn" id="ctrl-pause" title="${callbacks.paused ? "계속하기" : "일시정지"}" aria-label="일시정지">${
+          callbacks.paused ? "▶" : "⏸"
+        }</button>
+        <button class="ctrl-btn ctrl-quit" id="ctrl-quit" title="나가기" aria-label="나가기">✕</button>
+      </div>
+    </div>
     <div class="stats">
       <span class="stat">드로우 <b>${view.drawPileCount}</b></span>
       <span class="stat">버림 <b>${view.discardPileCount}</b></span>
     </div>
     ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
     ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
+    ${callbacks.paused ? `<div class="message pause">일시정지됨 — ▶ 버튼을 눌러 계속하세요</div>` : ""}
   `;
   container.appendChild(header);
 
@@ -80,7 +94,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   const viewer = view.players.find((p) => p.id === view.viewerId);
   if (viewer) {
     const isCurrent = viewer.id === currentPlayerId && !isFinished;
-    const canPlay = isCurrent && !viewer.isWinner;
+    const canPlay = isCurrent && !viewer.isWinner && !callbacks.paused;
 
     const handHtml =
       (viewer.cards ?? [])
@@ -124,4 +138,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       callbacks.onPlayCard(btn.dataset.playerId!, undefined);
     });
   });
+  container.querySelector("#ctrl-back")!.addEventListener("click", callbacks.onBack);
+  container.querySelector("#ctrl-pause")!.addEventListener("click", callbacks.onTogglePause);
+  container.querySelector("#ctrl-quit")!.addEventListener("click", callbacks.onQuit);
 }

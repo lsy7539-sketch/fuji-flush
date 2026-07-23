@@ -4,7 +4,7 @@ import { renderBoard } from "./render";
 
 type Screen = "chooser" | "lobby" | "game";
 
-export function startNetworkMode(app: HTMLElement): void {
+export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let socket: WebSocket | null = null;
   let viewerId = "";
   let roomCode = "";
@@ -13,6 +13,36 @@ export function startNetworkMode(app: HTMLElement): void {
   let lastView: PlayerFacingState | null = null;
   let errorMessage = "";
   let screen: Screen = "chooser";
+  let paused = false;
+
+  function resetToChooser(): void {
+    socket?.close();
+    socket = null;
+    viewerId = "";
+    roomCode = "";
+    hostId = "";
+    lobbyPlayers = [];
+    lastView = null;
+    errorMessage = "";
+    paused = false;
+    screen = "chooser";
+    render();
+  }
+
+  // "뒤로가기": leave this room but stay in online-multiplayer flow (create/join again).
+  function confirmBack(): void {
+    if (confirm("정말 방을 나가시겠어요? 다른 플레이어들과의 연결이 끊어집니다.")) {
+      resetToChooser();
+    }
+  }
+
+  // "✕": leave all the way back to the single/multi mode-select screen.
+  function confirmQuit(): void {
+    if (confirm("정말 게임을 나가시겠어요? 다른 플레이어들과의 연결이 끊어집니다.")) {
+      socket?.close();
+      onExit();
+    }
+  }
 
   function send(message: ClientMessage): void {
     socket?.send(JSON.stringify(message));
@@ -110,7 +140,7 @@ export function startNetworkMode(app: HTMLElement): void {
       }
       ensureSocket(() => send({ type: "joinRoom", roomCode: code, playerName: name }));
     });
-    container.querySelector("#back-btn")!.addEventListener("click", () => location.reload());
+    container.querySelector("#back-btn")!.addEventListener("click", onExit);
   }
 
   function renderLobby(): void {
@@ -152,6 +182,7 @@ export function startNetworkMode(app: HTMLElement): void {
     if (!lastView) return;
     renderBoard(app, lastView, {
       message: errorMessage,
+      paused,
       onPlayCard: (_playerId, cardId) => {
         send({ type: "playCard", cardId });
         // Simple wait-for-server guard: disable further input until the next
@@ -159,6 +190,17 @@ export function startNetworkMode(app: HTMLElement): void {
         app
           .querySelectorAll<HTMLButtonElement>(".hand-card, .pass-btn")
           .forEach((btn) => (btn.disabled = true));
+      },
+      // Leaving a live multiplayer room affects other real players, so both
+      // confirm first (unlike local mode, where back is free). Back stays in
+      // online-multiplayer flow; quit goes all the way to mode-select.
+      onBack: confirmBack,
+      onQuit: confirmQuit,
+      // Pausing can only dim/disable this client's own screen — the game
+      // keeps running for everyone else since it's a shared session.
+      onTogglePause: () => {
+        paused = !paused;
+        render();
       },
     });
   }

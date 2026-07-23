@@ -9,18 +9,43 @@ const BOT_MOVE_DELAY_MS = 500;
 
 const BOT_NAME_POOL = ["카리나", "안유진", "장원영", "수지", "윈터", "미나미", "원이"];
 
-export function startLocalMode(app: HTMLElement, playerCount: number): void {
+/**
+ * @param onBack - "뒤로가기": re-pick the player count (no confirmation, low stakes).
+ * @param onHome - "✕": leave to the single/multi mode-select screen (confirmed first).
+ */
+export function startLocalMode(
+  app: HTMLElement,
+  playerCount: number,
+  onBack: () => void,
+  onHome: () => void,
+): void {
   let state: GameState = createGame(buildPlayerDefs(playerCount));
   let message = "";
+  let paused = false;
 
   function render(): void {
     renderBoard(app, toPlayerView(state, HUMAN_ID), {
       message,
+      paused,
       onPlayCard: handlePlayCard,
+      onBack,
+      onTogglePause: togglePause,
+      onQuit: () => {
+        if (confirm("정말 게임을 나가시겠어요? 진행 상황이 사라집니다.")) {
+          onHome();
+        }
+      },
     });
   }
 
+  function togglePause(): void {
+    paused = !paused;
+    render();
+    if (!paused) scheduleBotTurnIfNeeded();
+  }
+
   function handlePlayCard(playerId: string, cardId?: string): void {
+    if (paused) return;
     try {
       state = playCard(state, playerId, cardId);
       message = "";
@@ -37,11 +62,12 @@ export function startLocalMode(app: HTMLElement, playerCount: number): void {
   }
 
   function scheduleBotTurnIfNeeded(): void {
-    if (state.gameStatus === "FINISHED") return;
+    if (paused || state.gameStatus === "FINISHED") return;
     const current = state.players[state.currentPlayerIndex];
     if (current.id === HUMAN_ID) return;
 
     setTimeout(() => {
+      if (paused) return;
       const cardId = chooseBotMove(state, current.id);
       state = playCard(state, current.id, cardId);
       message = "";

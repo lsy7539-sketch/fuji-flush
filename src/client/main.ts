@@ -1,8 +1,25 @@
 import "./style.css";
+import { startAdminMode } from "./adminMode";
 import { startLocalMode } from "./localMode";
+import { isAuthed, renderLoginGate } from "./loginGate";
 import { startNetworkMode } from "./networkMode";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
+
+function boot(): void {
+  if (location.hash === "#admin") {
+    startAdminMode(app, () => {
+      location.hash = "";
+      boot();
+    });
+    return;
+  }
+  if (!isAuthed()) {
+    renderLoginGate(app, renderModeSelect);
+    return;
+  }
+  renderModeSelect();
+}
 
 function renderModeSelect(): void {
   app.innerHTML = "";
@@ -12,11 +29,14 @@ function renderModeSelect(): void {
     <h1>Fuji Flush</h1>
     <button id="mode-local">혼자하기 (AI 상대)</button>
     <button id="mode-network">온라인 멀티플레이</button>
+    <a class="admin-link" href="#admin">관리자 모드</a>
   `;
   app.appendChild(container);
 
   container.querySelector("#mode-local")!.addEventListener("click", renderLocalSetup);
-  container.querySelector("#mode-network")!.addEventListener("click", () => startNetworkMode(app));
+  container
+    .querySelector("#mode-network")!
+    .addEventListener("click", () => startNetworkMode(app, renderModeSelect));
 }
 
 function renderLocalSetup(): void {
@@ -35,9 +55,12 @@ function renderLocalSetup(): void {
   container.querySelector("#start-btn")!.addEventListener("click", () => {
     const input = container.querySelector<HTMLInputElement>("#player-count")!;
     const count = Math.min(8, Math.max(3, Number(input.value) || 4));
-    startLocalMode(app, count);
+    // "뒤로가기" during the game re-opens this same setup screen; "✕" goes
+    // all the way home to mode-select.
+    startLocalMode(app, count, renderLocalSetup, renderModeSelect);
   });
   container.querySelector("#back-btn")!.addEventListener("click", renderModeSelect);
 }
 
-renderModeSelect();
+window.addEventListener("hashchange", boot);
+boot();
