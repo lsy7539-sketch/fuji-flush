@@ -55,9 +55,10 @@ app.use(express.static(distDir));
 
 app.post("/api/login", async (req, res) => {
   const code = req.body?.code;
-  const result = typeof code === "string" ? await checkAccessCode(code) : { valid: false, isAdmin: false };
+  const result =
+    typeof code === "string" ? await checkAccessCode(code) : { valid: false, isAdmin: false, nickname: "" };
   if (result.valid) {
-    res.json({ ok: true, isAdmin: result.isAdmin });
+    res.json({ ok: true, isAdmin: result.isAdmin, nickname: result.nickname });
   } else {
     res.status(401).json({ ok: false, message: "코드가 올바르지 않습니다." });
   }
@@ -98,12 +99,13 @@ app.get("/api/admin/codes", requireAdmin, async (_req, res) => {
 app.post("/api/admin/codes", requireAdmin, async (req, res) => {
   const code = req.body?.code;
   const isAdmin = req.body?.isAdmin === true;
+  const nickname = req.body?.nickname;
   if (typeof code !== "string" || !code.trim()) {
     res.status(400).json({ ok: false, message: "코드를 입력해주세요." });
     return;
   }
   try {
-    res.json({ code: await registerAccessCode(code, isAdmin) });
+    res.json({ code: await registerAccessCode(code, isAdmin, typeof nickname === "string" ? nickname : "") });
   } catch (err) {
     res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "등록에 실패했습니다." });
   }

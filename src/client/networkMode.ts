@@ -1,4 +1,5 @@
 import type { PlayerFacingState } from "../engine/playerView";
+import { getNickname } from "./loginGate";
 import type { ClientMessage, LobbyPlayer, ServerMessage } from "../shared/protocol";
 import { renderBoard } from "./render";
 
@@ -120,8 +121,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     container.innerHTML = `
       <h1>Fuji Flush · 온라인 멀티플레이</h1>
       ${errorMessage ? `<div class="message">${errorMessage}</div>` : ""}
-      <label for="player-name">닉네임</label>
-      <input type="text" id="player-name" value="플레이어" />
+      <p>닉네임: <b>${getNickname()}</b></p>
       <label for="room-name">방 이름 (선택)</label>
       <input type="text" id="room-name" placeholder="예: 금요일 밤 후지플러시" />
       <label for="room-code-input">방 코드 (선택, 비우면 자동 생성)</label>
@@ -134,9 +134,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     `;
     app.appendChild(container);
 
-    const nameInput = container.querySelector<HTMLInputElement>("#player-name")!;
     container.querySelector("#create-btn")!.addEventListener("click", () => {
-      const name = nameInput.value.trim() || "플레이어";
       const customRoomName = container.querySelector<HTMLInputElement>("#room-name")!.value.trim();
       const customRoomCode = container
         .querySelector<HTMLInputElement>("#room-code-input")!
@@ -144,21 +142,20 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       ensureSocket(() =>
         send({
           type: "createRoom",
-          playerName: name,
+          playerName: getNickname(),
           roomName: customRoomName || undefined,
           roomCode: customRoomCode || undefined,
         }),
       );
     });
     container.querySelector("#join-btn")!.addEventListener("click", () => {
-      const name = nameInput.value.trim() || "플레이어";
       const code = container.querySelector<HTMLInputElement>("#room-code")!.value.trim();
       if (!code) {
         errorMessage = "참가 코드를 입력해주세요.";
         render();
         return;
       }
-      ensureSocket(() => send({ type: "joinRoom", roomCode: code, playerName: name }));
+      ensureSocket(() => send({ type: "joinRoom", roomCode: code, playerName: getNickname() }));
     });
     container.querySelector("#back-btn")!.addEventListener("click", onExit);
   }

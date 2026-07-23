@@ -22,9 +22,13 @@ export async function initDb(): Promise<void> {
     CREATE TABLE IF NOT EXISTS access_codes (
       code TEXT PRIMARY KEY,
       created_at BIGINT NOT NULL,
-      is_admin BOOLEAN NOT NULL DEFAULT FALSE
+      is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+      nickname TEXT NOT NULL DEFAULT ''
     )
   `);
+  // Postgres (unlike SQLite) supports this directly, so no try/catch dance
+  // is needed for databases created before `nickname` existed.
+  await pool.query("ALTER TABLE access_codes ADD COLUMN IF NOT EXISTS nickname TEXT NOT NULL DEFAULT ''");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS matches (
       id SERIAL PRIMARY KEY,

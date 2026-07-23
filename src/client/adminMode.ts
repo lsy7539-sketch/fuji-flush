@@ -2,6 +2,7 @@ interface AccessCodeRow {
   code: string;
   createdAt: number;
   isAdmin: boolean;
+  nickname: string;
 }
 
 const ADMIN_SESSION_KEY = "fuji-flush-admin-password";
@@ -48,13 +49,18 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
     }
   }
 
-  async function registerCode(code: string, isAdmin: boolean): Promise<void> {
+  async function registerCode(code: string, isAdmin: boolean, nickname: string): Promise<void> {
     if (!code.trim()) return;
+    if (!nickname.trim()) {
+      codeFormError = "닉네임을 입력해주세요.";
+      render();
+      return;
+    }
     try {
       const res = await fetch("/api/admin/codes", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-password": password },
-        body: JSON.stringify({ code, isAdmin }),
+        body: JSON.stringify({ code, isAdmin, nickname }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -120,6 +126,7 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
         (c) => `
           <li>
             <span class="code-value">${c.code}</span>
+            <span class="code-nickname">${c.nickname}</span>
             ${c.isAdmin ? `<span class="badge badge-turn">관리자</span>` : ""}
             <span class="code-date">${new Date(c.createdAt).toLocaleString("ko-KR")}</span>
             <button class="revoke-btn" data-code="${c.code}">삭제</button>
@@ -130,10 +137,12 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
 
     container.innerHTML = `
       <h1>입장 코드 관리</h1>
-      <p>사용자는 이 중 하나의 코드로 로그인할 수 있어요. 코드는 직접 정해서 등록하세요.
-      "관리자 코드"로 등록하면 그 코드로 로그인했을 때만 관리자 모드 링크가 보여요.</p>
+      <p>코드 하나가 계정 하나예요 — 코드, 닉네임을 함께 등록하세요. 그 코드로 로그인하면
+      항상 같은 닉네임으로 참여해요. "관리자 코드"로 등록하면 그 코드로 로그인했을 때만
+      관리자 모드 링크가 보여요.</p>
       <div class="code-form">
-        <input type="text" id="new-code-input" placeholder="등록할 코드 입력" autocomplete="off" />
+        <input type="text" id="new-code-input" placeholder="등록할 코드" autocomplete="off" />
+        <input type="text" id="new-code-nickname" placeholder="닉네임" autocomplete="off" />
         <button id="new-code-btn">등록</button>
       </div>
       <label class="code-form-checkbox">
@@ -146,16 +155,22 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
     app.appendChild(container);
 
     const codeInput = container.querySelector<HTMLInputElement>("#new-code-input")!;
+    const nicknameInput = container.querySelector<HTMLInputElement>("#new-code-nickname")!;
     const isAdminCheckbox = container.querySelector<HTMLInputElement>("#new-code-is-admin")!;
     const submitCode = () => {
       const value = codeInput.value;
+      const nickname = nicknameInput.value;
       const isAdmin = isAdminCheckbox.checked;
       codeInput.value = "";
+      nicknameInput.value = "";
       isAdminCheckbox.checked = false;
-      registerCode(value, isAdmin);
+      registerCode(value, isAdmin, nickname);
     };
     container.querySelector("#new-code-btn")!.addEventListener("click", submitCode);
     codeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitCode();
+    });
+    nicknameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") submitCode();
     });
     container.querySelectorAll<HTMLButtonElement>(".revoke-btn").forEach((btn) => {

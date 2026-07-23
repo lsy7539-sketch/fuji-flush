@@ -1,5 +1,6 @@
 const SESSION_KEY = "fuji-flush-authed";
 const IS_ADMIN_CODE_KEY = "fuji-flush-is-admin-code";
+const NICKNAME_KEY = "fuji-flush-nickname";
 
 export function isAuthed(): boolean {
   return sessionStorage.getItem(SESSION_KEY) === "1";
@@ -10,6 +11,13 @@ export function isAuthed(): boolean {
 // requires the separate ADMIN_PASSWORD regardless of this flag.
 export function isAdminCodeSession(): boolean {
   return sessionStorage.getItem(IS_ADMIN_CODE_KEY) === "1";
+}
+
+// The nickname tied to this session's access code (set by the admin at
+// registration) — used as the display name in multiplayer instead of
+// asking the player to type one in each time.
+export function getNickname(): string {
+  return sessionStorage.getItem(NICKNAME_KEY) ?? "플레이어";
 }
 
 export function renderLoginGate(app: HTMLElement, onSuccess: () => void): void {
@@ -42,6 +50,7 @@ export function renderLoginGate(app: HTMLElement, onSuccess: () => void): void {
       if (data.ok) {
         sessionStorage.setItem(SESSION_KEY, "1");
         sessionStorage.setItem(IS_ADMIN_CODE_KEY, data.isAdmin ? "1" : "0");
+        sessionStorage.setItem(NICKNAME_KEY, data.nickname || "플레이어");
         onSuccess();
       } else {
         errorEl.innerHTML = `<div class="message">${data.message ?? "코드가 올바르지 않습니다."}</div>`;
