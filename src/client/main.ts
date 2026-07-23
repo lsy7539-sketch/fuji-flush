@@ -29,6 +29,7 @@ function renderModeSelect(): void {
     <h1>Fuji Flush</h1>
     <button id="mode-local">혼자하기 (AI 상대)</button>
     <button id="mode-network">온라인 멀티플레이</button>
+    <a class="admin-link" href="#admin">관리자 모드</a>
   `;
   app.appendChild(container);
 
