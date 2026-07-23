@@ -8,6 +8,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let socket: WebSocket | null = null;
   let viewerId = "";
   let roomCode = "";
+  let roomName = "";
   let hostId = "";
   let lobbyPlayers: LobbyPlayer[] = [];
   let lastView: PlayerFacingState | null = null;
@@ -20,6 +21,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     socket = null;
     viewerId = "";
     roomCode = "";
+    roomName = "";
     hostId = "";
     lobbyPlayers = [];
     lastView = null;
@@ -70,17 +72,20 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     switch (message.type) {
       case "roomCreated":
         roomCode = message.roomCode;
+        roomName = message.roomName;
         viewerId = message.youAre;
         hostId = message.youAre;
         screen = "lobby";
         break;
       case "roomJoined":
         roomCode = message.roomCode;
+        roomName = message.roomName;
         viewerId = message.youAre;
         screen = "lobby";
         break;
       case "lobbyUpdate":
         roomCode = message.roomCode;
+        roomName = message.roomName;
         hostId = message.hostId;
         lobbyPlayers = message.players;
         screen = "lobby";
@@ -117,6 +122,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       ${errorMessage ? `<div class="message">${errorMessage}</div>` : ""}
       <label for="player-name">닉네임</label>
       <input type="text" id="player-name" value="플레이어" />
+      <label for="room-name">방 이름 (선택)</label>
+      <input type="text" id="room-name" placeholder="예: 금요일 밤 후지플러시" />
+      <label for="room-code-input">방 코드 (선택, 비우면 자동 생성)</label>
+      <input type="text" id="room-code-input" placeholder="원하는 코드" />
       <button id="create-btn">방 만들기</button>
       <label for="room-code">참가 코드</label>
       <input type="text" id="room-code" placeholder="코드 입력" value="${prefilledCode}" />
@@ -128,7 +137,18 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     const nameInput = container.querySelector<HTMLInputElement>("#player-name")!;
     container.querySelector("#create-btn")!.addEventListener("click", () => {
       const name = nameInput.value.trim() || "플레이어";
-      ensureSocket(() => send({ type: "createRoom", playerName: name }));
+      const customRoomName = container.querySelector<HTMLInputElement>("#room-name")!.value.trim();
+      const customRoomCode = container
+        .querySelector<HTMLInputElement>("#room-code-input")!
+        .value.trim();
+      ensureSocket(() =>
+        send({
+          type: "createRoom",
+          playerName: name,
+          roomName: customRoomName || undefined,
+          roomCode: customRoomCode || undefined,
+        }),
+      );
     });
     container.querySelector("#join-btn")!.addEventListener("click", () => {
       const name = nameInput.value.trim() || "플레이어";
@@ -150,10 +170,11 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     const isHost = viewerId === hostId;
     const canStart = isHost && lobbyPlayers.length >= 3;
     container.innerHTML = `
-      <h1>대기실</h1>
+      <h1>${roomName || "대기실"}</h1>
       <div class="room-code">코드: ${roomCode}</div>
-      <p>이 코드를 친구에게 공유하세요 (3~8명 필요)</p>
+      <p>이 코드나 초대 링크를 친구에게 공유하세요 (3~8명 필요)</p>
       ${errorMessage ? `<div class="message">${errorMessage}</div>` : ""}
+      <button id="invite-btn">초대 링크 복사</button>
       <ul class="lobby-players">
         ${lobbyPlayers
           .map(
@@ -171,11 +192,30 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
             }</button>`
           : `<p>방장이 게임을 시작하기를 기다리는 중...</p>`
       }
+      <button id="lobby-back-btn">뒤로</button>
     `;
     app.appendChild(container);
     container
       .querySelector("#start-btn")
       ?.addEventListener("click", () => send({ type: "startGame" }));
+    container.querySelector("#invite-btn")!.addEventListener("click", async (e) => {
+      const link = `${location.origin}/?room=${encodeURIComponent(roomCode)}`;
+      const btn = e.currentTarget as HTMLButtonElement;
+      try {
+        await navigator.clipboard.writeText(link);
+        const original = btn.textContent;
+        btn.textContent = "복사됨!";
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1500);
+      } catch {
+        errorMessage = `복사 실패, 직접 공유하세요: ${link}`;
+        render();
+      }
+    });
+    // Leaving the waiting room (before the game starts) is low-stakes — no
+    // confirmation needed, unlike mid-game back/quit.
+    container.querySelector("#lobby-back-btn")!.addEventListener("click", resetToChooser);
   }
 
   function renderGame(): void {

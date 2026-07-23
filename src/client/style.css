@@ -133,7 +133,9 @@ input:focus-visible {
 
 .setup #mode-network,
 .setup #join-btn,
-.setup #back-btn {
+.setup #back-btn,
+.setup #invite-btn,
+.setup #lobby-back-btn {
   background: rgba(0, 0, 0, 0.2);
   color: var(--text);
 }

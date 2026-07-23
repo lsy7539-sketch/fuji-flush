@@ -16,6 +16,7 @@ interface RoomPlayer {
 
 interface Room {
   code: string;
+  name: string;
   hostPlayerId: string;
   players: RoomPlayer[];
   state: GameState | null;
@@ -37,6 +38,7 @@ function broadcastLobby(room: Room): void {
   const message: ServerMessage = {
     type: "lobbyUpdate",
     roomCode: room.code,
+    roomName: room.name,
     hostId: room.hostPlayerId,
     players: room.players.map((p) => ({ id: p.id, name: p.name })),
   };
@@ -106,7 +108,7 @@ export function handleConnection(socket: WebSocket): void {
 function handleMessage(socket: WebSocket, message: ClientMessage): void {
   switch (message.type) {
     case "createRoom":
-      return createRoom(socket, message.playerName);
+      return createRoom(socket, message.playerName, message.roomName, message.roomCode);
     case "joinRoom":
       return joinRoom(socket, message.roomCode, message.playerName);
     case "startGame":
@@ -116,18 +118,31 @@ function handleMessage(socket: WebSocket, message: ClientMessage): void {
   }
 }
 
-function createRoom(socket: WebSocket, playerName: string): void {
-  const code = generateRoomCode((c) => rooms.has(c));
+function createRoom(
+  socket: WebSocket,
+  playerName: string,
+  roomName: string | undefined,
+  customCode: string | undefined,
+): void {
+  let code: string;
+  if (customCode && customCode.trim()) {
+    code = customCode.trim().toUpperCase();
+    if (rooms.has(code)) throw new Error("이미 사용 중인 방 코드입니다.");
+  } else {
+    code = generateRoomCode((c) => rooms.has(c));
+  }
+
   const playerId = makePlayerId();
   const room: Room = {
     code,
+    name: roomName?.trim() || `${playerName || "Player"}의 방`,
     hostPlayerId: playerId,
     players: [{ id: playerId, name: playerName || "Player", socket }],
     state: null,
     status: "LOBBY",
   };
   rooms.set(code, room);
-  send(socket, { type: "roomCreated", roomCode: code, youAre: playerId });
+  send(socket, { type: "roomCreated", roomCode: code, roomName: room.name, youAre: playerId });
   broadcastLobby(room);
 }
 
@@ -139,7 +154,7 @@ function joinRoom(socket: WebSocket, roomCode: string, playerName: string): void
 
   const playerId = makePlayerId();
   room.players.push({ id: playerId, name: playerName || "Player", socket });
-  send(socket, { type: "roomJoined", roomCode: room.code, youAre: playerId });
+  send(socket, { type: "roomJoined", roomCode: room.code, roomName: room.name, youAre: playerId });
   broadcastLobby(room);
 }
 
