@@ -36,11 +36,11 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       const cardsHtml = group.cards
         .map((c) => {
           const owner = view.players.find((p) => p.id === c.playerId)?.name ?? c.playerId;
-          return `<div class="active-card"><span class="value">${c.value}</span><span class="owner">${owner}</span></div>`;
+          return `<div class="active-card"><span class="corner">${c.value}</span><span class="value">${c.value}</span><span class="owner">${owner}</span></div>`;
         })
         .join("");
       groupEl.innerHTML = `
-        <div class="group-total">${group.totalValue}</div>
+        <div class="group-total"><span class="group-total-value">${group.totalValue}</span></div>
         <div class="group-cards">${cardsHtml}</div>
       `;
       table.appendChild(groupEl);

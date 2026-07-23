@@ -1,30 +1,32 @@
 :root {
   color-scheme: dark;
 
-  /* Deliberately dark-only — a card table, not a document; committing to one
-     visual world rather than half-supporting a light variant. */
-  --ink: #0b0f1a;
-  --panel: #141a29;
-  --panel-raised: #1c2438;
-  --line: #2a3348;
-  --line-soft: #202939;
-  --text: #eef1f8;
-  --text-dim: #8791a8;
+  /* Deliberately dark-only — a felt card table, not a document. */
+  --felt: #123c2e;
+  --felt-dark: #0a2a20;
+  --wood: #2b1c12;
+  --wood-light: #3a2818;
+  --line: #4a3624;
 
-  --accent: #6c56f5;
-  --accent-strong: #7f6bf7;
-  --accent-soft: #a79cff;
+  --card-face: #f6ecd8;
+  --card-ink: #241708;
+  --card-owner: #6b5a42;
 
-  --win: #34d399;
-  --win-soft: #a7f3d4;
-  --danger: #fb7185;
-  --danger-soft: #ffc2cd;
+  --gold: #d4af37;
+  --gold-soft: #e9cd7a;
 
-  --font-display: "Instrument Sans", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --text: #f3ead9;
+  --text-dim: #c2b393;
 
-  --radius-lg: 18px;
+  --win: #7fae7a;
+  --win-soft: #a7c2a4;
+  --danger: #d9765a;
+  --danger-soft: #f0b49b;
+
+  --font-display: "Fraunces", serif;
+  --font-body: "Libre Franklin", sans-serif;
+
+  --radius-lg: 20px;
   --radius-md: 12px;
   --radius-sm: 8px;
 }
@@ -37,7 +39,8 @@ body {
   margin: 0;
   min-height: 100vh;
   padding: 3rem 1.5rem;
-  background: radial-gradient(120% 100% at 50% 0%, #131a2c 0%, var(--ink) 60%);
+  background: radial-gradient(140% 100% at 50% -10%, var(--felt) 0%, var(--felt-dark) 65%);
+  background-color: var(--felt-dark);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 15px;
@@ -47,9 +50,10 @@ body {
 h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.9rem;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  font-size: 2.1rem;
+  color: var(--gold-soft);
+  text-shadow: 0 2px 14px rgba(212, 175, 55, 0.25);
   text-wrap: balance;
 }
 
@@ -64,7 +68,7 @@ button {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--accent-soft);
+  outline: 2px solid var(--gold-soft);
   outline-offset: 2px;
 }
 
@@ -74,10 +78,10 @@ input:focus-visible {
   max-width: 360px;
   margin: 3rem auto;
   padding: 2rem;
-  background: var(--panel);
+  background: linear-gradient(165deg, var(--wood-light), var(--wood));
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -86,18 +90,18 @@ input:focus-visible {
 
 .setup label {
   text-align: left;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   margin-bottom: -0.4rem;
 }
 
 .setup input {
   padding: 0.65rem 0.8rem;
   font-size: 0.95rem;
-  font-family: var(--font-mono);
-  background: var(--ink);
+  font-family: var(--font-display);
+  background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -105,32 +109,33 @@ input:focus-visible {
 
 .setup button {
   cursor: pointer;
-  border: none;
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   padding: 0.7rem 1rem;
-  transition: transform 120ms ease, background 120ms ease;
+  transition: transform 120ms ease, filter 120ms ease;
 }
 
 .setup button:first-of-type,
 .setup #create-btn,
 .setup #start-btn,
 .setup #mode-local {
-  background: var(--accent);
-  color: white;
+  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
+  color: var(--wood);
+  border: none;
 }
 
 .setup button:hover:not(:disabled) {
   transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
 .setup #mode-network,
 .setup #join-btn,
 .setup #back-btn {
-  background: var(--panel-raised);
+  background: rgba(0, 0, 0, 0.2);
   color: var(--text);
-  border: 1px solid var(--line);
 }
 
 .setup button:disabled {
@@ -140,11 +145,11 @@ input:focus-visible {
 }
 
 .room-code {
-  font-family: var(--font-mono);
-  font-size: 1.6rem;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--accent-soft);
+  letter-spacing: 0.12em;
+  color: var(--gold-soft);
 }
 
 .lobby-players {
@@ -158,7 +163,7 @@ input:focus-visible {
 }
 
 .lobby-players li {
-  background: var(--panel-raised);
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0.55rem 0.8rem;
@@ -191,25 +196,25 @@ input:focus-visible {
   display: flex;
   align-items: baseline;
   gap: 0.35rem;
-  background: var(--panel);
+  background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0.3rem 0.75rem;
+  padding: 0.3rem 0.8rem;
   font-size: 0.78rem;
   color: var(--text-dim);
 }
 
 .stats .stat b {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--gold-soft);
   font-weight: 600;
 }
 
 .message {
   padding: 0.6rem 0.9rem;
-  background: rgba(251, 113, 133, 0.12);
-  border: 1px solid rgba(251, 113, 133, 0.35);
+  background: rgba(217, 118, 90, 0.15);
+  border: 1px solid rgba(217, 118, 90, 0.4);
   color: var(--danger-soft);
   border-radius: var(--radius-sm);
   font-size: 0.88rem;
@@ -218,23 +223,24 @@ input:focus-visible {
 }
 
 .message.win {
-  background: rgba(52, 211, 153, 0.12);
-  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(127, 174, 122, 0.15);
+  border-color: rgba(127, 174, 122, 0.4);
   color: var(--win-soft);
 }
 
-/* the table: a felt-dark surface holding whatever's currently in play */
+/* the felt table itself */
 
 .table {
-  min-height: 140px;
+  min-height: 150px;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  background: linear-gradient(155deg, #10162480, #0d1220);
-  border: 1px solid var(--line-soft);
+  gap: 2rem;
+  padding: 1.75rem 1.5rem;
   border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.35));
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.35);
 }
 
 .empty-table {
@@ -248,72 +254,90 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .group-total {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.1rem;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 1rem;
-  color: var(--accent-soft);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--gold-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
 }
 
 .group-total::before {
   content: "합계";
-  font-size: 0.65rem;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-family: var(--font-body);
-  font-weight: 500;
+  display: block;
+}
+
+.group-total {
+  font-weight: 600;
+}
+
+.group-total-value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-top: 0.1rem;
 }
 
 .group.joined .group-cards {
-  padding: 0.4rem;
-  border-radius: var(--radius-md);
-  background: rgba(108, 86, 245, 0.08);
-  border: 1px solid rgba(108, 86, 245, 0.3);
+  padding: 0 0.4rem;
 }
 
 .group-cards {
   display: flex;
-  gap: 0.5rem;
 }
 
-/* playing-card-shaped tiles, shared by hand cards / active cards / backs */
+/* playing-card-shaped tiles: a fanned deck look for grouped active cards */
 
 .active-card,
 .hand-card,
 .card-back {
-  width: 3rem;
-  height: 4.1rem;
+  width: 3.2rem;
+  height: 4.5rem;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
 }
 
 .active-card {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.15rem;
-  background: linear-gradient(155deg, var(--panel-raised), var(--panel));
-  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.6);
+  background: var(--card-face);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+  margin-left: -0.7rem;
+}
+
+.group-cards .active-card:first-child {
+  margin-left: 0;
 }
 
 .active-card .value {
-  font-family: var(--font-mono);
-  font-size: 1.15rem;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
   font-weight: 700;
+  color: var(--card-ink);
+}
+
+.active-card .corner {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--card-ink);
 }
 
 .active-card .owner {
-  font-size: 0.6rem;
-  color: var(--text-dim);
+  position: absolute;
+  bottom: 3px;
+  font-size: 0.5rem;
+  color: var(--card-owner);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -321,25 +345,23 @@ input:focus-visible {
 .players {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .player {
-  background: var(--panel);
+  background: linear-gradient(160deg, var(--wood-light), var(--wood));
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 1.1rem;
-  transition: background 150ms ease, box-shadow 150ms ease;
+  transition: box-shadow 150ms ease;
 }
 
 .player.current {
-  background: var(--panel-raised);
-  box-shadow: 0 0 0 1px rgba(108, 86, 245, 0.4), 0 12px 30px -14px rgba(108, 86, 245, 0.5);
+  box-shadow: 0 0 0 2px var(--gold), 0 10px 24px -10px rgba(212, 175, 55, 0.5);
 }
 
 .player.winner {
-  background: var(--panel-raised);
-  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.4), 0 12px 30px -14px rgba(52, 211, 153, 0.45);
+  box-shadow: 0 0 0 2px var(--win), 0 10px 24px -10px rgba(127, 174, 122, 0.5);
 }
 
 .player-name {
@@ -349,32 +371,32 @@ input:focus-visible {
   flex-wrap: wrap;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 0.95rem;
-  margin-bottom: 0.7rem;
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .badge {
   font-family: var(--font-body);
-  font-size: 0.62rem;
-  font-weight: 600;
+  font-size: 0.6rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
 }
 
 .badge-turn {
-  background: rgba(108, 86, 245, 0.18);
-  color: var(--accent-soft);
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--gold-soft);
 }
 
 .badge-win {
-  background: rgba(52, 211, 153, 0.18);
+  background: rgba(127, 174, 122, 0.2);
   color: var(--win-soft);
 }
 
 .badge-you {
-  background: var(--line-soft);
+  background: rgba(0, 0, 0, 0.25);
   color: var(--text-dim);
 }
 
@@ -386,33 +408,34 @@ input:focus-visible {
 
 .hand-card {
   cursor: pointer;
-  background: linear-gradient(155deg, var(--panel-raised), var(--panel));
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 1.15rem;
+  background: var(--card-face);
+  color: var(--card-ink);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
   font-weight: 700;
-  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.5);
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 140ms ease, box-shadow 140ms ease;
 }
 
 .hand-card:disabled {
   cursor: default;
-  opacity: 0.4;
+  opacity: 0.45;
 }
 
 .hand-card:not(:disabled):hover {
   transform: translateY(-4px);
-  border-color: var(--accent);
-  box-shadow: 0 10px 20px -8px rgba(108, 86, 245, 0.55);
+  box-shadow: 0 12px 20px -6px rgba(212, 175, 55, 0.5);
 }
 
 .card-back {
+  border: 1px solid var(--line);
   background: repeating-linear-gradient(
     135deg,
-    var(--panel-raised),
-    var(--panel-raised) 5px,
-    var(--panel) 5px,
-    var(--panel) 10px
+    var(--wood-light),
+    var(--wood-light) 4px,
+    var(--wood) 4px,
+    var(--wood) 8px
   );
 }
 
@@ -425,9 +448,9 @@ input:focus-visible {
   cursor: pointer;
   margin-top: 0.7rem;
   background: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent-soft);
-  font-weight: 600;
+  border: 1px solid var(--gold);
+  color: var(--gold-soft);
+  font-weight: 700;
   font-size: 0.85rem;
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.9rem;
@@ -435,7 +458,7 @@ input:focus-visible {
 }
 
 .pass-btn:hover {
-  background: rgba(108, 86, 245, 0.12);
+  background: rgba(212, 175, 55, 0.12);
 }
 
 @media (prefers-reduced-motion: reduce) {
