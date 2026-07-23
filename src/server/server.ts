@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { WebSocketServer } from "ws";
 import { handleConnection } from "./rooms";
+import { initDb } from "./db";
 import {
   isValidAccessCode,
   listAccessCodes,
@@ -52,9 +53,9 @@ app.set("trust proxy", true);
 app.use(express.json());
 app.use(express.static(distDir));
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const code = req.body?.code;
-  if (typeof code === "string" && isValidAccessCode(code)) {
+  if (typeof code === "string" && (await isValidAccessCode(code))) {
     res.json({ ok: true });
   } else {
     res.status(401).json({ ok: false, message: "코드가 올바르지 않습니다." });
@@ -89,25 +90,25 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
   res.status(401).json({ ok: false, message: "관리자 인증이 필요합니다." });
 }
 
-app.get("/api/admin/codes", requireAdmin, (_req, res) => {
-  res.json({ codes: listAccessCodes() });
+app.get("/api/admin/codes", requireAdmin, async (_req, res) => {
+  res.json({ codes: await listAccessCodes() });
 });
 
-app.post("/api/admin/codes", requireAdmin, (req, res) => {
+app.post("/api/admin/codes", requireAdmin, async (req, res) => {
   const code = req.body?.code;
   if (typeof code !== "string" || !code.trim()) {
     res.status(400).json({ ok: false, message: "코드를 입력해주세요." });
     return;
   }
   try {
-    res.json({ code: registerAccessCode(code) });
+    res.json({ code: await registerAccessCode(code) });
   } catch (err) {
     res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "등록에 실패했습니다." });
   }
 });
 
-app.delete("/api/admin/codes/:code", requireAdmin, (req, res) => {
-  res.json({ ok: revokeAccessCode(String(req.params.code)) });
+app.delete("/api/admin/codes/:code", requireAdmin, async (req, res) => {
+  res.json({ ok: await revokeAccessCode(String(req.params.code)) });
 });
 
 const httpServer = http.createServer(app);
@@ -115,6 +116,14 @@ const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 wss.on("connection", handleConnection);
 
 const port = Number(process.env.PORT) || 3000;
-httpServer.listen(port, () => {
-  console.log(`Fuji Flush server listening on port ${port}`);
-});
+
+initDb()
+  .then(() => {
+    httpServer.listen(port, () => {
+      console.log(`Fuji Flush server listening on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("DB 초기화에 실패했습니다:", err);
+    process.exit(1);
+  });

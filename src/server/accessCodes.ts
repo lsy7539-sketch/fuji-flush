@@ -3,37 +3,58 @@
 // admin (server.ts's ADMIN_PASSWORD) can register or revoke these, and picks
 // the exact code text themselves (no auto-generation).
 //
-// In-memory only, like rooms.ts — codes disappear on server restart. Fine for
-// a hobby project; documented as a known limitation in CLAUDE.md.
+// Backed by db.ts (Turso in production, a local SQLite file in dev) so
+// codes survive server restarts and redeploys.
+
+import { db } from "./db";
 
 export interface AccessCode {
   code: string;
   createdAt: number;
 }
 
-const codes = new Map<string, AccessCode>();
-
-export function isValidAccessCode(code: string): boolean {
-  return codes.has(code.trim().toUpperCase());
+export async function isValidAccessCode(code: string): Promise<boolean> {
+  const result = await db.execute({
+    sql: "SELECT 1 FROM access_codes WHERE code = ?",
+    args: [code.trim().toUpperCase()],
+  });
+  return result.rows.length > 0;
 }
 
-export function listAccessCodes(): AccessCode[] {
-  return [...codes.values()].sort((a, b) => b.createdAt - a.createdAt);
+export async function listAccessCodes(): Promise<AccessCode[]> {
+  const result = await db.execute(
+    "SELECT code, created_at FROM access_codes ORDER BY created_at DESC",
+  );
+  return result.rows.map((row) => ({
+    code: String(row.code),
+    createdAt: Number(row.created_at),
+  }));
 }
 
-export function registerAccessCode(rawCode: string): AccessCode {
+export async function registerAccessCode(rawCode: string): Promise<AccessCode> {
   const code = rawCode.trim().toUpperCase();
   if (!code) {
     throw new Error("코드를 입력해주세요.");
   }
-  if (codes.has(code)) {
+  const existing = await db.execute({
+    sql: "SELECT 1 FROM access_codes WHERE code = ?",
+    args: [code],
+  });
+  if (existing.rows.length > 0) {
     throw new Error("이미 등록된 코드입니다.");
   }
-  const entry: AccessCode = { code, createdAt: Date.now() };
-  codes.set(code, entry);
-  return entry;
+  const createdAt = Date.now();
+  await db.execute({
+    sql: "INSERT INTO access_codes (code, created_at) VALUES (?, ?)",
+    args: [code, createdAt],
+  });
+  return { code, createdAt };
 }
 
-export function revokeAccessCode(code: string): boolean {
-  return codes.delete(code.trim().toUpperCase());
+export async function revokeAccessCode(code: string): Promise<boolean> {
+  const result = await db.execute({
+    sql: "DELETE FROM access_codes WHERE code = ?",
+    args: [code.trim().toUpperCase()],
+  });
+  return result.rowsAffected > 0;
 }

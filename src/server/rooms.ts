@@ -3,6 +3,7 @@ import { GameError, createGame, playCard } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import type { GameState } from "../engine/types";
 import type { ClientMessage, ServerMessage } from "../shared/protocol";
+import { db } from "./db";
 import { generateRoomCode } from "./roomCode";
 
 const MIN_PLAYERS = 3;
@@ -21,6 +22,7 @@ interface Room {
   players: RoomPlayer[];
   state: GameState | null;
   status: "LOBBY" | "IN_PROGRESS" | "FINISHED";
+  startedAt: number | null;
 }
 
 // Single in-memory registry — rooms disappear on server restart. Acceptable for a
@@ -140,6 +142,7 @@ function createRoom(
     players: [{ id: playerId, name: playerName || "Player", socket }],
     state: null,
     status: "LOBBY",
+    startedAt: null,
   };
   rooms.set(code, room);
   send(socket, { type: "roomCreated", roomCode: code, roomName: room.name, youAre: playerId });
@@ -168,6 +171,7 @@ function startGame(socket: WebSocket): void {
 
   room.state = createGame(room.players.map((p) => ({ id: p.id, name: p.name })));
   room.status = "IN_PROGRESS";
+  room.startedAt = Date.now();
   broadcastState(room, "gameStarted");
 }
 
@@ -191,6 +195,31 @@ function handlePlayCard(socket: WebSocket, cardId: string | undefined): void {
 
   if (room.state.gameStatus === "FINISHED") {
     room.status = "FINISHED";
+    // Fire-and-forget: recording history shouldn't delay the game-over
+    // broadcast everyone is waiting on.
+    recordMatch(room).catch((err) => console.error("전적 기록 실패:", err));
   }
   broadcastState(room, "stateUpdate");
+}
+
+// Stats/rankings are a future feature (CLAUDE.md TODO) — this just makes
+// sure the raw data is captured as games finish, so nothing has to be
+// backfilled later.
+async function recordMatch(room: Room): Promise<void> {
+  if (!room.state) return;
+  const finishedAt = Date.now();
+  const result = await db.execute({
+    sql: `INSERT INTO matches (room_name, room_code, started_at, finished_at, player_count)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [room.name, room.code, room.startedAt ?? finishedAt, finishedAt, room.state.players.length],
+  });
+  const matchId = result.lastInsertRowid;
+  if (matchId === undefined) return;
+  for (const p of room.state.players) {
+    await db.execute({
+      sql: `INSERT INTO match_players (match_id, player_name, is_winner, final_hand_size)
+            VALUES (?, ?, ?, ?)`,
+      args: [matchId, p.name, p.isWinner ? 1 : 0, p.hand.length],
+    });
+  }
 }
