@@ -1,6 +1,7 @@
 interface AccessCodeRow {
   code: string;
   createdAt: number;
+  isAdmin: boolean;
 }
 
 const ADMIN_SESSION_KEY = "fuji-flush-admin-password";
@@ -47,13 +48,13 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
     }
   }
 
-  async function registerCode(code: string): Promise<void> {
+  async function registerCode(code: string, isAdmin: boolean): Promise<void> {
     if (!code.trim()) return;
     try {
       const res = await fetch("/api/admin/codes", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-password": password },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, isAdmin }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -119,6 +120,7 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
         (c) => `
           <li>
             <span class="code-value">${c.code}</span>
+            ${c.isAdmin ? `<span class="badge badge-turn">관리자</span>` : ""}
             <span class="code-date">${new Date(c.createdAt).toLocaleString("ko-KR")}</span>
             <button class="revoke-btn" data-code="${c.code}">삭제</button>
           </li>
@@ -128,11 +130,15 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
 
     container.innerHTML = `
       <h1>입장 코드 관리</h1>
-      <p>사용자는 이 중 하나의 코드로 로그인할 수 있어요. 코드는 직접 정해서 등록하세요.</p>
+      <p>사용자는 이 중 하나의 코드로 로그인할 수 있어요. 코드는 직접 정해서 등록하세요.
+      "관리자 코드"로 등록하면 그 코드로 로그인했을 때만 관리자 모드 링크가 보여요.</p>
       <div class="code-form">
         <input type="text" id="new-code-input" placeholder="등록할 코드 입력" autocomplete="off" />
         <button id="new-code-btn">등록</button>
       </div>
+      <label class="code-form-checkbox">
+        <input type="checkbox" id="new-code-is-admin" /> 관리자 코드로 등록
+      </label>
       ${codeFormError ? `<div class="message">${codeFormError}</div>` : ""}
       <ul class="code-list">${rows || `<li class="code-empty">아직 등록한 코드가 없습니다.</li>`}</ul>
       <button id="admin-exit-btn">나가기</button>
@@ -140,10 +146,13 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
     app.appendChild(container);
 
     const codeInput = container.querySelector<HTMLInputElement>("#new-code-input")!;
+    const isAdminCheckbox = container.querySelector<HTMLInputElement>("#new-code-is-admin")!;
     const submitCode = () => {
       const value = codeInput.value;
+      const isAdmin = isAdminCheckbox.checked;
       codeInput.value = "";
-      registerCode(value);
+      isAdminCheckbox.checked = false;
+      registerCode(value, isAdmin);
     };
     container.querySelector("#new-code-btn")!.addEventListener("click", submitCode);
     codeInput.addEventListener("keydown", (e) => {

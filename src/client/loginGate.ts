@@ -1,7 +1,15 @@
 const SESSION_KEY = "fuji-flush-authed";
+const IS_ADMIN_CODE_KEY = "fuji-flush-is-admin-code";
 
 export function isAuthed(): boolean {
   return sessionStorage.getItem(SESSION_KEY) === "1";
+}
+
+// Whether *this session's* login code was admin-flagged — controls only
+// whether the "관리자 모드" link is shown; the admin panel itself still
+// requires the separate ADMIN_PASSWORD regardless of this flag.
+export function isAdminCodeSession(): boolean {
+  return sessionStorage.getItem(IS_ADMIN_CODE_KEY) === "1";
 }
 
 export function renderLoginGate(app: HTMLElement, onSuccess: () => void): void {
@@ -33,6 +41,7 @@ export function renderLoginGate(app: HTMLElement, onSuccess: () => void): void {
       const data = await res.json();
       if (data.ok) {
         sessionStorage.setItem(SESSION_KEY, "1");
+        sessionStorage.setItem(IS_ADMIN_CODE_KEY, data.isAdmin ? "1" : "0");
         onSuccess();
       } else {
         errorEl.innerHTML = `<div class="message">${data.message ?? "코드가 올바르지 않습니다."}</div>`;

@@ -18,9 +18,18 @@ export async function initDb(): Promise<void> {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS access_codes (
       code TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      is_admin INTEGER NOT NULL DEFAULT 0
     )
   `);
+  // Lightweight migration for databases created before is_admin existed —
+  // SQLite has no "ADD COLUMN IF NOT EXISTS", so just ignore the "duplicate
+  // column" error when it's already there.
+  try {
+    await db.execute("ALTER TABLE access_codes ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0");
+  } catch {
+    // already migrated
+  }
   await db.execute(`
     CREATE TABLE IF NOT EXISTS matches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

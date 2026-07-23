@@ -642,6 +642,16 @@ input:focus-visible {
   white-space: nowrap;
 }
 
+.code-form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-top: -0.5rem;
+}
+
 .code-list {
   list-style: none;
   padding: 0;

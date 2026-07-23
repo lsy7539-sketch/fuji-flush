@@ -6,7 +6,7 @@ import { WebSocketServer } from "ws";
 import { handleConnection } from "./rooms";
 import { initDb } from "./db";
 import {
-  isValidAccessCode,
+  checkAccessCode,
   listAccessCodes,
   registerAccessCode,
   revokeAccessCode,
@@ -55,8 +55,9 @@ app.use(express.static(distDir));
 
 app.post("/api/login", async (req, res) => {
   const code = req.body?.code;
-  if (typeof code === "string" && (await isValidAccessCode(code))) {
-    res.json({ ok: true });
+  const result = typeof code === "string" ? await checkAccessCode(code) : { valid: false, isAdmin: false };
+  if (result.valid) {
+    res.json({ ok: true, isAdmin: result.isAdmin });
   } else {
     res.status(401).json({ ok: false, message: "코드가 올바르지 않습니다." });
   }
@@ -96,12 +97,13 @@ app.get("/api/admin/codes", requireAdmin, async (_req, res) => {
 
 app.post("/api/admin/codes", requireAdmin, async (req, res) => {
   const code = req.body?.code;
+  const isAdmin = req.body?.isAdmin === true;
   if (typeof code !== "string" || !code.trim()) {
     res.status(400).json({ ok: false, message: "코드를 입력해주세요." });
     return;
   }
   try {
-    res.json({ code: await registerAccessCode(code) });
+    res.json({ code: await registerAccessCode(code, isAdmin) });
   } catch (err) {
     res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "등록에 실패했습니다." });
   }
