@@ -14,7 +14,6 @@ export function renderLoginGate(app: HTMLElement, onSuccess: () => void): void {
     <input type="text" id="entry-code" placeholder="코드 입력" autocomplete="off" />
     <div id="login-error"></div>
     <button id="login-btn">입장하기</button>
-    <a class="admin-link" href="#admin">관리자이신가요?</a>
   `;
   app.appendChild(container);
 

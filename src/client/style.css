@@ -576,16 +576,6 @@ input:focus-visible {
   background: rgba(212, 175, 55, 0.12);
 }
 
-.admin-link {
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  text-decoration: none;
-}
-
-.admin-link:hover {
-  color: var(--gold-soft);
-}
-
 /* ---------- admin panel ---------- */
 
 .admin-panel {
