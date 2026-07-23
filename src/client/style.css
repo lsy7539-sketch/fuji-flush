@@ -591,7 +591,6 @@ input:focus-visible {
   gap: 1rem;
 }
 
-.admin-panel #new-code-btn,
 .admin-panel #admin-exit-btn {
   cursor: pointer;
   border: 1px solid var(--line);
@@ -603,10 +602,32 @@ input:focus-visible {
   color: var(--text);
 }
 
-.admin-panel #new-code-btn {
+.code-form {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.code-form input {
+  flex: 1;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.95rem;
+  font-family: var(--font-display);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.code-form #new-code-btn {
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.7rem 1.1rem;
   background: linear-gradient(160deg, var(--gold-soft), var(--gold));
   color: var(--wood);
-  border: none;
+  white-space: nowrap;
 }
 
 .code-list {

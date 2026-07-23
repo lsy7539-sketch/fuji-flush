@@ -5,9 +5,9 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { handleConnection } from "./rooms";
 import {
-  createAccessCode,
   isValidAccessCode,
   listAccessCodes,
+  registerAccessCode,
   revokeAccessCode,
 } from "./accessCodes";
 
@@ -93,8 +93,17 @@ app.get("/api/admin/codes", requireAdmin, (_req, res) => {
   res.json({ codes: listAccessCodes() });
 });
 
-app.post("/api/admin/codes", requireAdmin, (_req, res) => {
-  res.json({ code: createAccessCode() });
+app.post("/api/admin/codes", requireAdmin, (req, res) => {
+  const code = req.body?.code;
+  if (typeof code !== "string" || !code.trim()) {
+    res.status(400).json({ ok: false, message: "코드를 입력해주세요." });
+    return;
+  }
+  try {
+    res.json({ code: registerAccessCode(code) });
+  } catch (err) {
+    res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "등록에 실패했습니다." });
+  }
 });
 
 app.delete("/api/admin/codes/:code", requireAdmin, (req, res) => {
