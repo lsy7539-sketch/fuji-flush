@@ -15,7 +15,10 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   header.className = "header";
   header.innerHTML = `
     <h1>Fuji Flush</h1>
-    <div class="piles">드로우 덱: ${view.drawPileCount}장 · 버림 더미: ${view.discardPileCount}장</div>
+    <div class="stats">
+      <span class="stat">드로우 <b>${view.drawPileCount}</b></span>
+      <span class="stat">버림 <b>${view.discardPileCount}</b></span>
+    </div>
     ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
     ${view.gameStatus === "FINISHED" ? `<div class="message win">게임 종료!</div>` : ""}
   `;
@@ -75,10 +78,14 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
         `<span class="empty-hand">손패 없음</span>`;
     }
 
+    const badges = [
+      p.isWinner ? `<span class="badge badge-win">승리</span>` : "",
+      isCurrent && !p.isWinner ? `<span class="badge badge-turn">현재 턴</span>` : "",
+      isViewer ? `<span class="badge badge-you">나</span>` : "",
+    ].join("");
+
     playerEl.innerHTML = `
-      <div class="player-name">${p.name}${p.isWinner ? " 🏆" : ""}${isCurrent ? " (현재 턴)" : ""}${
-        isViewer ? " (나)" : ""
-      }</div>
+      <div class="player-name"><span>${p.name}</span>${badges}</div>
       <div class="hand">${handHtml}</div>
       ${
         canPlay && p.handSize === 0
