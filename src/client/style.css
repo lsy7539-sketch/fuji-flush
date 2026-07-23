@@ -294,10 +294,15 @@ input:focus-visible {
 /* playing-card-shaped tiles: a fanned deck look for grouped active cards */
 
 .active-card,
-.hand-card,
 .card-back {
   width: 3.2rem;
   height: 4.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.hand-card {
+  width: 3.8rem;
+  height: 5.3rem;
   border-radius: var(--radius-sm);
 }
 
@@ -342,37 +347,94 @@ input:focus-visible {
   letter-spacing: 0.04em;
 }
 
-.players {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 1.1rem;
+/* other players: a compact strip up top — name, status, card count only */
+
+.opponents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  justify-content: center;
 }
 
-.player {
+.opponent {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   background: linear-gradient(160deg, var(--wood-light), var(--wood));
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: 1.1rem;
+  border-radius: 999px;
+  padding: 0.5rem 1rem 0.5rem 0.6rem;
   transition: box-shadow 150ms ease;
 }
 
-.player.current {
-  box-shadow: 0 0 0 2px var(--gold), 0 10px 24px -10px rgba(212, 175, 55, 0.5);
+.opponent.current {
+  box-shadow: 0 0 0 2px var(--gold), 0 8px 20px -10px rgba(212, 175, 55, 0.55);
 }
 
-.player.winner {
-  box-shadow: 0 0 0 2px var(--win), 0 10px 24px -10px rgba(127, 174, 122, 0.5);
+.opponent.winner {
+  box-shadow: 0 0 0 2px var(--win), 0 8px 20px -10px rgba(127, 174, 122, 0.5);
 }
 
-.player-name {
+.opponent-name {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+  gap: 0.35rem;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 1rem;
-  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.opponent-count {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  border-left: 1px solid var(--line);
+  padding-left: 0.6rem;
+}
+
+.mini-back {
+  display: inline-block;
+  width: 0.85rem;
+  height: 1.15rem;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--wood-light),
+    var(--wood-light) 2px,
+    var(--gold) 2px,
+    var(--gold) 3px
+  );
+  border: 1px solid var(--line);
+}
+
+/* my hand: the one thing that gets laid out large and clickable */
+
+.my-hand {
+  background: linear-gradient(160deg, var(--wood-light), var(--wood));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 1.4rem;
+  transition: box-shadow 150ms ease;
+}
+
+.my-hand.current {
+  box-shadow: 0 0 0 2px var(--gold), 0 14px 32px -14px rgba(212, 175, 55, 0.55);
+}
+
+.my-hand.winner {
+  box-shadow: 0 0 0 2px var(--win), 0 14px 32px -14px rgba(127, 174, 122, 0.5);
+}
+
+.my-hand-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-bottom: 0.9rem;
 }
 
 .badge {
@@ -412,7 +474,7 @@ input:focus-visible {
   color: var(--card-ink);
   border: 1px solid rgba(0, 0, 0, 0.15);
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
   transition: transform 140ms ease, box-shadow 140ms ease;
@@ -465,7 +527,8 @@ input:focus-visible {
   .setup button,
   .hand-card,
   .pass-btn,
-  .player {
+  .opponent,
+  .my-hand {
     transition: none;
   }
   .hand-card:not(:disabled):hover {

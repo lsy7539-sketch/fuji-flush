@@ -11,6 +11,9 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   const container = document.createElement("div");
   container.className = "board";
 
+  const currentPlayerId = view.players[view.currentPlayerIndex]?.id;
+  const isFinished = view.gameStatus === "FINISHED";
+
   const header = document.createElement("div");
   header.className = "header";
   header.innerHTML = `
@@ -20,9 +23,34 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       <span class="stat">버림 <b>${view.discardPileCount}</b></span>
     </div>
     ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
-    ${view.gameStatus === "FINISHED" ? `<div class="message win">게임 종료!</div>` : ""}
+    ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
   `;
   container.appendChild(header);
+
+  // Other players sit in a compact strip up top — only their name, turn/win
+  // status, and remaining card count. Their hands are never laid out card by
+  // card; only the viewer's own hand gets the full spread treatment below.
+  const opponents = view.players.filter((p) => p.id !== view.viewerId);
+  if (opponents.length > 0) {
+    const opponentsEl = document.createElement("div");
+    opponentsEl.className = "opponents";
+    for (const p of opponents) {
+      const isCurrent = p.id === currentPlayerId && !isFinished;
+      const badges = [
+        p.isWinner ? `<span class="badge badge-win">승리</span>` : "",
+        isCurrent && !p.isWinner ? `<span class="badge badge-turn">현재 턴</span>` : "",
+      ].join("");
+
+      const chip = document.createElement("div");
+      chip.className = "opponent" + (isCurrent ? " current" : "") + (p.isWinner ? " winner" : "");
+      chip.innerHTML = `
+        <div class="opponent-name"><span>${p.name}</span>${badges}</div>
+        <div class="opponent-count"><span class="mini-back"></span>${p.handSize}장</div>
+      `;
+      opponentsEl.appendChild(chip);
+    }
+    container.appendChild(opponentsEl);
+  }
 
   const table = document.createElement("div");
   table.className = "table";
@@ -48,54 +76,41 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   }
   container.appendChild(table);
 
-  const currentPlayerId = view.players[view.currentPlayerIndex]?.id;
+  // The viewer's own hand: the one thing that actually gets laid out nicely.
+  const viewer = view.players.find((p) => p.id === view.viewerId);
+  if (viewer) {
+    const isCurrent = viewer.id === currentPlayerId && !isFinished;
+    const canPlay = isCurrent && !viewer.isWinner;
 
-  const playersEl = document.createElement("div");
-  playersEl.className = "players";
-  view.players.forEach((p) => {
-    const isCurrent = p.id === currentPlayerId && view.gameStatus !== "FINISHED";
-    const isViewer = p.id === view.viewerId;
-    const canPlay = isCurrent && isViewer && !p.isWinner;
-
-    const playerEl = document.createElement("div");
-    playerEl.className =
-      "player" + (isCurrent ? " current" : "") + (p.isWinner ? " winner" : "");
-
-    let handHtml: string;
-    if (p.cards) {
-      handHtml =
-        p.cards
-          .map(
-            (card) =>
-              `<button class="hand-card" data-card-id="${card.id}" data-player-id="${p.id}" ${
-                canPlay ? "" : "disabled"
-              }>${card.value}</button>`,
-          )
-          .join("") || `<span class="empty-hand">손패 없음</span>`;
-    } else {
-      handHtml =
-        Array.from({ length: p.handSize }, () => `<div class="card-back"></div>`).join("") ||
-        `<span class="empty-hand">손패 없음</span>`;
-    }
+    const handHtml =
+      (viewer.cards ?? [])
+        .map(
+          (card) =>
+            `<button class="hand-card" data-card-id="${card.id}" data-player-id="${viewer.id}" ${
+              canPlay ? "" : "disabled"
+            }>${card.value}</button>`,
+        )
+        .join("") || `<span class="empty-hand">손패 없음</span>`;
 
     const badges = [
-      p.isWinner ? `<span class="badge badge-win">승리</span>` : "",
-      isCurrent && !p.isWinner ? `<span class="badge badge-turn">현재 턴</span>` : "",
-      isViewer ? `<span class="badge badge-you">나</span>` : "",
+      viewer.isWinner ? `<span class="badge badge-win">승리</span>` : "",
+      isCurrent && !viewer.isWinner ? `<span class="badge badge-turn">현재 턴</span>` : "",
     ].join("");
 
-    playerEl.innerHTML = `
-      <div class="player-name"><span>${p.name}</span>${badges}</div>
+    const myHandEl = document.createElement("div");
+    myHandEl.className =
+      "my-hand" + (isCurrent ? " current" : "") + (viewer.isWinner ? " winner" : "");
+    myHandEl.innerHTML = `
+      <div class="my-hand-header"><span>내 손패</span>${badges}</div>
       <div class="hand">${handHtml}</div>
       ${
-        canPlay && p.handSize === 0
-          ? `<button class="pass-btn" data-player-id="${p.id}">턴 진행</button>`
+        canPlay && viewer.handSize === 0
+          ? `<button class="pass-btn" data-player-id="${viewer.id}">턴 진행</button>`
           : ""
       }
     `;
-    playersEl.appendChild(playerEl);
-  });
-  container.appendChild(playersEl);
+    container.appendChild(myHandEl);
+  }
 
   app.appendChild(container);
 
