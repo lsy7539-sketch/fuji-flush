@@ -3,8 +3,11 @@ import { startAdminMode } from "./adminMode";
 import { startLocalMode } from "./localMode";
 import { isAdminCodeSession, isAuthed, renderLoginGate } from "./loginGate";
 import { startNetworkMode } from "./networkMode";
+import { getTheme, initTheme, setTheme, type Theme } from "./theme";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
+
+initTheme();
 
 function boot(): void {
   if (location.hash === "#admin") {
@@ -25,14 +28,25 @@ function renderModeSelect(): void {
   app.innerHTML = "";
   const container = document.createElement("div");
   container.className = "setup";
+  const theme = getTheme();
   container.innerHTML = `
     <h1>Fuji Flush</h1>
+    <div class="theme-toggle" role="group" aria-label="테마 선택">
+      <button class="theme-btn${theme === "casino" ? " active" : ""}" data-theme-option="casino">카지노</button>
+      <button class="theme-btn${theme === "simple" ? " active" : ""}" data-theme-option="simple">심플</button>
+    </div>
     <button id="mode-local">혼자하기 (AI 상대)</button>
     <button id="mode-network">온라인 멀티플레이</button>
     ${isAdminCodeSession() ? `<a class="admin-link" href="#admin">관리자 모드</a>` : ""}
   `;
   app.appendChild(container);
 
+  container.querySelectorAll<HTMLButtonElement>(".theme-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setTheme(btn.dataset.themeOption as Theme);
+      renderModeSelect();
+    });
+  });
   container.querySelector("#mode-local")!.addEventListener("click", renderLocalSetup);
   container
     .querySelector("#mode-network")!
