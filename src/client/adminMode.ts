@@ -65,7 +65,7 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
       const data = await res.json();
       if (res.ok) {
         codeFormError = "";
-        await refreshCodes();
+        codes = [data.code, ...codes];
       } else {
         codeFormError = data.message ?? "등록에 실패했습니다.";
       }
@@ -76,6 +76,7 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
   }
 
   async function revoke(code: string): Promise<void> {
+    codeFormError = "";
     const res = await fetch(`/api/admin/codes/${encodeURIComponent(code)}`, {
       method: "DELETE",
       headers: { "x-admin-password": password },
