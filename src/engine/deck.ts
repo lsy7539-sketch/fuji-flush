@@ -1,20 +1,25 @@
 import type { Card } from "./types";
 
 const VALUE_COUNTS: Record<number, number> = {
-  2: 10,
-  3: 9,
-  4: 8,
+  2: 16,
+  3: 12,
+  4: 9,
   5: 8,
-  6: 8,
-  7: 7,
-  8: 7,
-  9: 7,
-  11: 6,
-  12: 5,
-  14: 4,
-  15: 4,
-  16: 4,
-  20: 3,
+  6: 6,
+  7: 6,
+  8: 5,
+  9: 4,
+  10: 4,
+  11: 4,
+  12: 3,
+  13: 3,
+  14: 3,
+  15: 2,
+  16: 1,
+  17: 1,
+  18: 1,
+  19: 1,
+  20: 1,
 };
 
 export const TOTAL_DECK_SIZE = Object.values(VALUE_COUNTS).reduce((a, b) => a + b, 0);

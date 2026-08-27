@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ActiveCard, Card, GameState, Player } from "../types";
-import { getActiveGroups, playCard } from "../gameEngine";
+import { createGame, getActiveGroups, playCard } from "../gameEngine";
 
 function card(id: string, value: number): Card {
   return { id, value };
@@ -166,8 +166,8 @@ describe("카드가 다음 자신의 턴까지 살아남아 Pushed Through되는
   });
 });
 
-describe("Joining Forces에 참여한 카드들이 Pushed Through되는 경우", () => {
-  it("그룹에 속한 카드도 각자 자신의 턴에 개별적으로 Pushed Through된다", () => {
+describe("Joining Forces에 참여한 카드들이 Pushed Through되는 경우 (RULES.md 23-26)", () => {
+  it("연합원 중 한 명의 턴이 돌아오면 연합 전체가 그 자리에서 함께 버려지고, 아무도 드로우하지 않는다", () => {
     const state = makeState({
       players: [player("A", [card("a-3", 3)]), player("B", [card("b-2", 2)])],
       activeCards: [active("A", 5, "a-5"), active("B", 5, "b-5")],
@@ -175,22 +175,39 @@ describe("Joining Forces에 참여한 카드들이 Pushed Through되는 경우",
       currentPlayerIndex: 0,
     });
 
-    // A의 차례: A의 5가 그룹에 속해 있었지만 살아남았으므로 Pushed Through.
-    // 이어서 내는 3은 5보다 낮으므로 아무것도 플러시하지 않는다.
+    // A의 차례: A의 5가 연합(5+5)에 속한 채로 살아남았다. 연합 전체(A의 5, B의 5)가
+    // 함께 Pushed Through되고, 이어서 A만 손패에서 새 카드(3)를 낸다 — B는 아무것도
+    // 하지 않고 자기 차례를 기다린다 (규칙 25).
     const afterA = playCard(state, "A", "a-3");
     expect(afterA.discardPile).toContainEqual({ id: "a-5", value: 5 });
+    expect(afterA.discardPile).toContainEqual({ id: "b-5", value: 5 });
     expect(afterA.drawPile).toEqual([card("draw-1", 6), card("draw-2", 7)]); // 드로우 없음
-    // 남은 B의 5는 이제 혼자이므로 그룹이 해체된다.
-    expect(getActiveGroups(afterA.activeCards).find((g) => g.value === 5)).toMatchObject({
-      groupId: null,
-      totalValue: 5,
+    expect(afterA.activeCards).toEqual([
+      { cardId: "a-3", playerId: "A", value: 3, playedAtTurn: 1, groupId: null },
+    ]);
+    // B는 자기 차례가 오기 전에 이미 activeCard가 사라진 상태다.
+    expect(afterA.players.find((p) => p.id === "B")!.hand).toEqual([card("b-2", 2)]);
+
+    // B의 차례: B.activeCard는 이미 없으므로(규칙 26) 기존 카드 버리기 단계 없이
+    // 바로 손패의 새 카드를 낸다.
+    const afterB = playCard(afterA, "B", "b-2");
+    expect(afterB.drawPile).toEqual([card("draw-1", 6), card("draw-2", 7)]); // 여전히 드로우 없음
+    expect(afterB.activeCards.map((ac) => ac.cardId).sort()).toEqual(["a-3", "b-2"]);
+  });
+
+  it("연합 중 한쪽이 Pushed Through로 마지막 카드를 버리면 자기 차례가 아니어도 즉시 승리한다 (규칙 33)", () => {
+    const state = makeState({
+      players: [player("A", [card("a-3", 3)]), player("B", [])],
+      activeCards: [active("A", 5, "a-5"), active("B", 5, "b-5")],
+      currentPlayerIndex: 0,
     });
 
-    // B의 차례: B의 5도 살아남았으므로 Pushed Through.
-    // 이어서 내는 2도 A의 3보다 낮으므로 아무것도 플러시하지 않는다.
-    const afterB = playCard(afterA, "B", "b-2");
-    expect(afterB.discardPile).toContainEqual({ id: "b-5", value: 5 });
-    expect(afterB.drawPile).toEqual([card("draw-1", 6), card("draw-2", 7)]); // 여전히 드로우 없음
+    const next = playCard(state, "A", "a-3");
+
+    const b = next.players.find((p) => p.id === "B")!;
+    expect(b.hand).toEqual([]);
+    expect(next.activeCards.some((ac) => ac.playerId === "B")).toBe(false);
+    expect(b.isWinner).toBe(true); // B의 턴이 아직 오지 않았는데도 승리 처리됨
   });
 });
 
@@ -246,5 +263,183 @@ describe("여러 플레이어가 동시에 승리하는 경우", () => {
     expect(x.isWinner).toBe(true);
     expect(w.isWinner).toBe(true);
     expect(next.activeCards.some((ac) => ac.playerId === "X" || ac.playerId === "W")).toBe(false);
+  });
+});
+
+// 공식 설명서(RULES.md) 53장의 TEST 1~13을 그대로 재현한다. 이름은 스펙 번호와
+// 1:1로 대응시켜 어떤 규칙 문단을 검증하는지 바로 추적할 수 있게 한다.
+describe("RULES.md 53장 — 공식 예시 테스트", () => {
+  it("TEST 1: A=6인 상태에서 B가 8을 내면 A의 6은 Flush되고 A는 드로우, B의 8은 유지", () => {
+    const state = makeState({
+      players: [player("A", []), player("B", [card("b-8", 8)])],
+      activeCards: [active("A", 6, "a-6")],
+      drawPile: [card("draw-1", 2)],
+      currentPlayerIndex: 1,
+    });
+
+    const next = playCard(state, "B", "b-8");
+
+    expect(next.discardPile).toContainEqual({ id: "a-6", value: 6 });
+    expect(next.players.find((p) => p.id === "A")!.hand).toEqual([card("draw-1", 2)]);
+    expect(next.activeCards.map((ac) => ac.cardId)).toEqual(["b-8"]);
+  });
+
+  it("TEST 2: A=8인 상태에서 B가 7을 내면 아무 일도 일어나지 않고 둘 다 유지된다", () => {
+    const state = makeState({
+      players: [player("A", []), player("B", [card("b-7", 7)])],
+      activeCards: [active("A", 8, "a-8")],
+      currentPlayerIndex: 1,
+    });
+
+    const next = playCard(state, "B", "b-7");
+
+    expect(next.discardPile).toEqual([]);
+    expect(next.activeCards.map((ac) => ac.cardId).sort()).toEqual(["a-8", "b-7"]);
+  });
+
+  it("TEST 3: A=7인 상태에서 B가 7을 내면 연합이 형성되고 POWER는 14다", () => {
+    const state = makeState({
+      players: [player("A", []), player("B", [card("b-7", 7)])],
+      activeCards: [active("A", 7, "a-7")],
+      currentPlayerIndex: 1,
+    });
+
+    const next = playCard(state, "B", "b-7");
+    const group = getActiveGroups(next.activeCards).find((g) => g.value === 7)!;
+
+    expect(group.totalValue).toBe(14);
+    expect(group.cards.map((c) => c.cardId).sort()).toEqual(["a-7", "b-7"]);
+  });
+
+  it("TEST 4: 7 연합(POWER 14)이 있을 때 C가 9를 내도 연합은 유지되고 9도 그대로 남는다", () => {
+    const state = makeState({
+      players: [player("A", []), player("B", []), player("C", [card("c-9", 9)])],
+      activeCards: [active("A", 7, "a-7"), active("B", 7, "b-7")],
+      currentPlayerIndex: 2,
+    });
+
+    const next = playCard(state, "C", "c-9");
+    const sevenGroup = getActiveGroups(next.activeCards).find((g) => g.value === 7)!;
+
+    expect(sevenGroup.totalValue).toBe(14);
+    expect(next.activeCards.some((ac) => ac.cardId === "c-9")).toBe(true);
+  });
+
+  it("TEST 5: A=7,B=7,C=9 상태에서 D가 실제 14를 내면 7 연합(동점)은 유지되고 C의 9만 Flush된다", () => {
+    const state = makeState({
+      players: [
+        player("A", []),
+        player("B", []),
+        player("C", []),
+        player("D", [card("d-14", 14)]),
+      ],
+      activeCards: [active("A", 7, "a-7"), active("B", 7, "b-7"), active("C", 9, "c-9")],
+      drawPile: [card("draw-1", 2)],
+      currentPlayerIndex: 3,
+    });
+
+    const next = playCard(state, "D", "d-14");
+    const groups = getActiveGroups(next.activeCards);
+
+    // 지수의 실제 14는 7 연합(POWER 14)과 동점 → 연합은 그대로 유지된다.
+    expect(groups.find((g) => g.value === 7)).toMatchObject({ totalValue: 14, groupId: "group-7" });
+    // 하지만 14 > 9이므로 연수의 9는 Flush되고 드로우한다.
+    expect(next.discardPile).toContainEqual({ id: "c-9", value: 9 });
+    expect(next.players.find((p) => p.id === "C")!.hand).toEqual([card("draw-1", 2)]);
+    expect(groups.some((g) => g.value === 14)).toBe(true);
+  });
+
+  it("TEST 6: 5+5 연합(POWER 10)과 실제 10 카드는 서로 다른 그룹이며 동점이라 아무도 Flush되지 않는다", () => {
+    const state = makeState({
+      players: [player("A", []), player("B", []), player("C", [card("c-10", 10)])],
+      activeCards: [active("A", 5, "a-5"), active("B", 5, "b-5")],
+      currentPlayerIndex: 2,
+    });
+
+    const next = playCard(state, "C", "c-10");
+    const groups = getActiveGroups(next.activeCards);
+
+    expect(groups).toHaveLength(2);
+    expect(groups.find((g) => g.value === 5)).toMatchObject({ totalValue: 10, groupId: "group-5" });
+    expect(groups.find((g) => g.value === 10)).toMatchObject({ totalValue: 10, groupId: null });
+    expect(next.discardPile).toEqual([]); // 동점이므로 Flush 없음
+  });
+
+  it("TEST 7: A=7,B=7 연합 상태로 A의 턴이 시작되면 둘 다 버려지고 드로우 없이 A만 새 카드를 낸다", () => {
+    const state = makeState({
+      players: [player("A", [card("a-6", 6)]), player("B", [])],
+      activeCards: [active("A", 7, "a-7"), active("B", 7, "b-7")],
+      drawPile: [card("draw-1", 2)],
+      currentPlayerIndex: 0,
+    });
+
+    const next = playCard(state, "A", "a-6");
+
+    expect(next.discardPile).toContainEqual({ id: "a-7", value: 7 });
+    expect(next.discardPile).toContainEqual({ id: "b-7", value: 7 });
+    expect(next.drawPile).toEqual([card("draw-1", 2)]); // 드로우 없음
+    expect(next.activeCards).toEqual([
+      { cardId: "a-6", playerId: "A", value: 6, playedAtTurn: 1, groupId: null },
+    ]);
+  });
+
+  it("TEST 8: TEST 7 직후 B의 차례가 오면 B.activeCard는 이미 없으므로 바로 새 카드를 낸다", () => {
+    const afterTurn7 = makeState({
+      players: [player("A", [], false), player("B", [card("b-3", 3)])],
+      activeCards: [active("A", 6, "a-6")],
+      currentPlayerIndex: 1,
+    });
+
+    expect(afterTurn7.activeCards.some((ac) => ac.playerId === "B")).toBe(false);
+
+    const next = playCard(afterTurn7, "B", "b-3");
+
+    expect(next.activeCards.map((ac) => ac.cardId).sort()).toEqual(["a-6", "b-3"]);
+  });
+
+  it("TEST 9: A=7,B=7 연합(POWER 14)에서 C가 15를 내면 둘 다 Flush되고 각자 드로우한다", () => {
+    const state = makeState({
+      players: [
+        player("A", []),
+        player("B", []),
+        player("C", [card("c-15", 15)]),
+      ],
+      activeCards: [active("A", 7, "a-7"), active("B", 7, "b-7")],
+      drawPile: [card("draw-1", 2), card("draw-2", 3)],
+      currentPlayerIndex: 2,
+    });
+
+    const next = playCard(state, "C", "c-15");
+
+    expect(next.discardPile).toContainEqual({ id: "a-7", value: 7 });
+    expect(next.discardPile).toContainEqual({ id: "b-7", value: 7 });
+    expect(next.players.find((p) => p.id === "A")!.hand).toHaveLength(1);
+    expect(next.players.find((p) => p.id === "B")!.hand).toHaveLength(1);
+  });
+
+  it("TEST 10: AI 2명(총 3명) 선택 시 각 플레이어는 6장을 받는다", () => {
+    const state = createGame([{ id: "H", name: "H" }, { id: "AI1", name: "AI1" }, { id: "AI2", name: "AI2" }]);
+    for (const p of state.players) expect(p.hand).toHaveLength(6);
+  });
+
+  it("TEST 11: AI 5명(총 6명) 선택 시 각 플레이어는 6장을 받는다", () => {
+    const defs = ["H", "AI1", "AI2", "AI3", "AI4", "AI5"].map((id) => ({ id, name: id }));
+    const state = createGame(defs);
+    for (const p of state.players) expect(p.hand).toHaveLength(6);
+  });
+
+  it("TEST 12: AI 6명(총 7명) 선택 시 각 플레이어는 5장을 받는다", () => {
+    const defs = ["H", "AI1", "AI2", "AI3", "AI4", "AI5", "AI6"].map((id) => ({ id, name: id }));
+    const state = createGame(defs);
+    for (const p of state.players) expect(p.hand).toHaveLength(5);
+  });
+
+  it("TEST 13: AI 7명(총 8명) 선택 시 각 플레이어는 5장을 받고 턴 순서는 Human부터 시계방향이다", () => {
+    const ids = ["H", "AI1", "AI2", "AI3", "AI4", "AI5", "AI6", "AI7"];
+    const defs = ids.map((id) => ({ id, name: id }));
+    const state = createGame(defs);
+    for (const p of state.players) expect(p.hand).toHaveLength(5);
+    expect(state.players.map((p) => p.id)).toEqual(ids);
+    expect(state.currentPlayerIndex).toBe(0); // Human부터 시작
   });
 });

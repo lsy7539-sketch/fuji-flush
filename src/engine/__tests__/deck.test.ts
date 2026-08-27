@@ -3,22 +3,22 @@ import { createDeck, TOTAL_DECK_SIZE } from "../deck";
 import { createGame, getInitialHandSize } from "../gameEngine";
 
 describe("createDeck", () => {
-  it("총 90장의 카드를 생성하고 10/13/17/18/19는 존재하지 않는다", () => {
+  it("총 90장의 카드를 생성하고 2~20 모든 숫자가 최소 한 장씩 존재한다 (RULES.md 2장)", () => {
     const deck = createDeck();
     expect(deck).toHaveLength(90);
     expect(TOTAL_DECK_SIZE).toBe(90);
 
-    const forbidden = [10, 13, 17, 18, 19];
-    for (const value of forbidden) {
-      expect(deck.some((c) => c.value === value)).toBe(false);
-    }
-
     const counts: Record<number, number> = {};
     for (const c of deck) counts[c.value] = (counts[c.value] ?? 0) + 1;
     expect(counts).toEqual({
-      2: 10, 3: 9, 4: 8, 5: 8, 6: 8, 7: 7, 8: 7, 9: 7,
-      11: 6, 12: 5, 14: 4, 15: 4, 16: 4, 20: 3,
+      2: 16, 3: 12, 4: 9, 5: 8, 6: 6, 7: 6, 8: 5, 9: 4, 10: 4, 11: 4,
+      12: 3, 13: 3, 14: 3, 15: 2, 16: 1, 17: 1, 18: 1, 19: 1, 20: 1,
     });
+
+    // 16~20은 공식 설명서 기준 각각 정확히 한 장씩만 존재한다.
+    for (const rare of [16, 17, 18, 19, 20]) {
+      expect(counts[rare]).toBe(1);
+    }
 
     const ids = new Set(deck.map((c) => c.id));
     expect(ids.size).toBe(90); // 모든 카드는 고유 ID를 가진다.

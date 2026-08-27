@@ -162,10 +162,20 @@ export function playCard(state: GameState, playerId: string, cardId?: string): G
   }
 
   // Step 1: push-through cleanup of this player's surviving active card, if any.
+  // Rule 23-26: any other still-active card sharing the same raw value (i.e. an
+  // ally in the same Joining Forces group) survives right alongside it and is
+  // discarded together — with no draw for any of them, current player or ally.
+  // Only the current player goes on to play a new card this turn (step 2+);
+  // an ally whose card is cleared here simply finds `activeCards` empty for
+  // them when their own turn eventually starts (rule 26).
   const existingActive = next.activeCards.find((ac) => ac.playerId === playerId);
   if (existingActive) {
-    removeActiveCard(next, existingActive.cardId);
-    next.discardPile.push({ id: existingActive.cardId, value: existingActive.value });
+    const survivingGroup = computeGroups(next.activeCards).get(existingActive.value)!;
+    for (const member of survivingGroup.cards) {
+      removeActiveCard(next, member.cardId);
+      next.discardPile.push({ id: member.cardId, value: member.value });
+    }
+    checkWinners(next);
   }
 
   if (currentPlayer.hand.length === 0) {
