@@ -235,16 +235,147 @@ input:focus-visible {
   line-height: 1.6;
 }
 
-.rulebook-example {
-  margin-top: 0.6rem;
-  padding: 0.7rem 0.9rem;
+/* rulebook card examples — small mock cards (not real game state) that
+   illustrate a before/after scene, sharing the same visual language as the
+   real hand/seat cards so it reads as "this is what you'll actually see". */
+
+.rule-scene {
+  margin-top: 0.7rem;
+  padding: 0.8rem 0.9rem 0.9rem;
   background: var(--overlay-soft);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--gold);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rule-row-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.rule-row-label {
+  font-size: 0.68rem;
   color: var(--text-dim);
-  line-height: 1.6;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.rule-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.rule-arrow {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gold-soft);
+}
+
+.rule-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.rule-card-face {
+  position: relative;
+  width: 2.7rem;
+  height: 3.8rem;
+  border-radius: var(--radius-sm);
+  background: var(--card-face);
+  border: 1px solid var(--card-border-subtle);
+  box-shadow: 0 4px 10px var(--card-shadow-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--card-ink);
+}
+
+.rule-card.joined .rule-card-face {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 45%, transparent), 0 4px 10px var(--card-shadow-strong);
+}
+
+.rule-card.flushed .rule-card-face {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+}
+
+.rule-card-power {
+  position: absolute;
+  bottom: -0.65rem;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: var(--wood);
+  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
+  border-radius: 999px;
+  padding: 0.08rem 0.35rem;
+}
+
+.rule-card-flushed-tag {
+  position: absolute;
+  top: -0.5rem;
+  right: -0.5rem;
+  font-size: 0.9rem;
+}
+
+.rule-card-owner {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.rule-scene-note {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+  text-align: center;
+}
+
+.rulebook-walkthrough {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 0.7rem;
+}
+
+.rule-turn {
+  padding: 0.7rem 0.9rem 0.9rem;
+  background: var(--overlay-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.rule-turn-label {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gold-soft);
+  letter-spacing: 0.04em;
+}
+
+.rule-turn-action {
+  font-size: 0.82rem;
+  color: var(--text-dim);
 }
 
 .toggle-group {
