@@ -3,6 +3,7 @@ import { startAdminMode } from "./adminMode";
 import { startLocalMode } from "./localMode";
 import { isAdminCodeSession, isAuthed, renderLoginGate } from "./loginGate";
 import { startNetworkMode } from "./networkMode";
+import { renderRulebook } from "./rulebook";
 import { getSpeed, setSpeed, type Speed } from "./speed";
 import { getTheme, initTheme, setTheme, type Theme } from "./theme";
 
@@ -38,6 +39,7 @@ function renderModeSelect(): void {
     </div>
     <button id="mode-local">혼자하기 (AI 상대)</button>
     <button id="mode-network">온라인 멀티플레이</button>
+    <button id="mode-rulebook">룰북</button>
     ${isAdminCodeSession() ? `<a class="admin-link" href="#admin">관리자 모드</a>` : ""}
   `;
   app.appendChild(container);
@@ -52,6 +54,9 @@ function renderModeSelect(): void {
   container
     .querySelector("#mode-network")!
     .addEventListener("click", () => startNetworkMode(app, renderModeSelect));
+  container
+    .querySelector("#mode-rulebook")!
+    .addEventListener("click", () => renderRulebook(app, renderModeSelect));
 }
 
 function renderLocalSetup(): void {

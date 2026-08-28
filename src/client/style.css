@@ -181,6 +181,8 @@ input:focus-visible {
 }
 
 .setup #mode-network,
+.setup #mode-rulebook,
+.setup #rulebook-back-btn,
 .setup #join-btn,
 .setup #back-btn,
 .setup #invite-btn,
@@ -193,6 +195,56 @@ input:focus-visible {
   opacity: 0.45;
   cursor: default;
   transform: none;
+}
+
+.rulebook {
+  max-width: 620px;
+  text-align: left;
+}
+
+.rulebook h1 {
+  text-align: center;
+}
+
+.rulebook-intro {
+  text-align: center;
+  margin-top: -0.4rem;
+}
+
+.rulebook-section {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.rulebook-section:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+
+.rulebook-section h2 {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--gold-soft);
+}
+
+.rulebook-section p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.rulebook-example {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--overlay-soft);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.6;
 }
 
 .toggle-group {
