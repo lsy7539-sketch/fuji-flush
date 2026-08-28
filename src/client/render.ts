@@ -15,7 +15,8 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   const container = document.createElement("div");
   container.className = "board" + (callbacks.paused ? " paused" : "");
 
-  const currentPlayerId = view.players[view.currentPlayerIndex]?.id;
+  const currentPlayer = view.players[view.currentPlayerIndex];
+  const currentPlayerId = currentPlayer?.id;
   const isFinished = view.gameStatus === "FINISHED";
 
   const header = document.createElement("div");
@@ -34,6 +35,11 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     <div class="stats">
       <span class="stat">드로우 <b>${view.drawPileCount}</b></span>
       <span class="stat">버림 <b>${view.discardPileCount}</b></span>
+      ${
+        !isFinished
+          ? `<span class="stat stat-turn">지금은 <b>${currentPlayer?.id === view.viewerId ? "나" : currentPlayer?.name}</b>의 차례</span>`
+          : ""
+      }
     </div>
     ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
     ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
@@ -41,54 +47,30 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   `;
   container.appendChild(header);
 
-  // Other players sit in a compact strip up top — only their name, turn/win
-  // status, and remaining card count. Their hands are never laid out card by
-  // card; only the viewer's own hand gets the full spread treatment below.
+  // Other players sit in a compact strip up top — name, turn/win status,
+  // remaining card count, and (rule 7-15) whatever card(s) they currently
+  // have down on the table, shown attached to their own seat rather than in
+  // one shared pile, so it's visually clear whose card is whose.
   const opponents = view.players.filter((p) => p.id !== view.viewerId);
   if (opponents.length > 0) {
     const opponentsEl = document.createElement("div");
     opponentsEl.className = "opponents";
     for (const p of opponents) {
       const isCurrent = p.id === currentPlayerId && !isFinished;
-      const badges = [
-        p.isWinner ? `<span class="badge badge-win">승리</span>` : "",
-        isCurrent && !p.isWinner ? `<span class="badge badge-turn">현재 턴</span>` : "",
-      ].join("");
+      const badges = [p.isWinner ? `<span class="badge badge-win">승리</span>` : ""].join("");
 
       const chip = document.createElement("div");
       chip.className = "opponent" + (isCurrent ? " current" : "") + (p.isWinner ? " winner" : "");
       chip.innerHTML = `
+        ${isCurrent ? `<span class="turn-flag">현재 턴</span>` : ""}
         <div class="opponent-name"><span>${p.name}</span>${badges}</div>
         <div class="opponent-count"><span class="mini-back"></span>${p.handSize}장</div>
+        ${renderSeatCards(view, p.id)}
       `;
       opponentsEl.appendChild(chip);
     }
     container.appendChild(opponentsEl);
   }
-
-  const table = document.createElement("div");
-  table.className = "table";
-  const groups = getActiveGroups(view.activeCards);
-  if (groups.length === 0) {
-    table.innerHTML = `<div class="empty-table">테이블에 카드가 없습니다</div>`;
-  } else {
-    for (const group of groups) {
-      const groupEl = document.createElement("div");
-      groupEl.className = "group" + (group.cards.length > 1 ? " joined" : "");
-      const cardsHtml = group.cards
-        .map((c) => {
-          const owner = view.players.find((p) => p.id === c.playerId)?.name ?? c.playerId;
-          return `<div class="active-card"><span class="corner">${c.value}</span><span class="value">${c.value}</span><span class="owner">${owner}</span></div>`;
-        })
-        .join("");
-      groupEl.innerHTML = `
-        <div class="group-total"><span class="group-total-value">${group.totalValue}</span></div>
-        <div class="group-cards">${cardsHtml}</div>
-      `;
-      table.appendChild(groupEl);
-    }
-  }
-  container.appendChild(table);
 
   // The viewer's own hand: the one thing that actually gets laid out nicely.
   const viewer = view.players.find((p) => p.id === view.viewerId);
@@ -106,16 +88,15 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
         )
         .join("") || `<span class="empty-hand">손패 없음</span>`;
 
-    const badges = [
-      viewer.isWinner ? `<span class="badge badge-win">승리</span>` : "",
-      isCurrent && !viewer.isWinner ? `<span class="badge badge-turn">현재 턴</span>` : "",
-    ].join("");
+    const badges = [viewer.isWinner ? `<span class="badge badge-win">승리</span>` : ""].join("");
 
     const myHandEl = document.createElement("div");
     myHandEl.className =
       "my-hand" + (isCurrent ? " current" : "") + (viewer.isWinner ? " winner" : "");
     myHandEl.innerHTML = `
+      ${isCurrent ? `<span class="turn-flag">현재 턴</span>` : ""}
       <div class="my-hand-header"><span>내 손패</span>${badges}</div>
+      ${renderSeatCards(view, viewer.id, "내가 낸 카드")}
       <div class="hand">${handHtml}</div>
       ${
         canPlay && viewer.handSize === 0
@@ -141,4 +122,29 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   container.querySelector("#ctrl-back")!.addEventListener("click", callbacks.onBack);
   container.querySelector("#ctrl-pause")!.addEventListener("click", callbacks.onTogglePause);
   container.querySelector("#ctrl-quit")!.addEventListener("click", callbacks.onQuit);
+}
+
+// A player's own active card(s), shown right on their seat (or above their
+// hand, for the viewer) instead of in one shared table area — a joined
+// (Joining Forces) card additionally carries the group's combined POWER so
+// it's clear why it survived or flushed something (rules 11-19).
+function renderSeatCards(view: PlayerFacingState, playerId: string, label?: string): string {
+  const own = view.activeCards.filter((ac) => ac.playerId === playerId);
+  if (own.length === 0) return "";
+  const groups = getActiveGroups(view.activeCards);
+
+  const cardsHtml = own
+    .map((ac) => {
+      const group = groups.find((g) => g.value === ac.value)!;
+      const joined = group.cards.length > 1;
+      return `
+        <div class="seat-card${joined ? " joined" : ""}">
+          <span class="value">${ac.value}</span>
+          ${joined ? `<span class="power-badge">${group.value}×${group.cards.length}=${group.totalValue}</span>` : ""}
+        </div>
+      `;
+    })
+    .join("");
+
+  return `<div class="seat-cards">${label ? `<span class="seat-cards-label">${label}</span>` : ""}${cardsHtml}</div>`;
 }
