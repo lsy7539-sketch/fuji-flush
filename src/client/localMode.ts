@@ -1,5 +1,5 @@
 import { chooseBotMove } from "../ai/botPlayer";
-import { GameError, createGame, playCard } from "../engine/gameEngine";
+import { GameError, createGame, playCard, resolveTurnStart } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import { computeDiscardEvents, computeDrawEvents, flyCard } from "./drawAnimation";
 import { getSpeed, getTiming } from "./speed";
@@ -40,10 +40,17 @@ export function startLocalMode(
     });
   }
 
+  // A plain function call (rather than repeating `state.gameStatus ===
+  // "FINISHED"` inline) so TS doesn't narrow it away across the awaits in
+  // runTurn(), where `state` is reassigned by a call it can't see into.
+  function isFinished(): boolean {
+    return state.gameStatus === "FINISHED";
+  }
+
   function togglePause(): void {
     paused = !paused;
     render();
-    if (!paused) scheduleBotTurnIfNeeded();
+    if (!paused) runTurn();
   }
 
   async function handlePlayCard(playerId: string, cardId?: string): Promise<void> {
@@ -64,30 +71,57 @@ export function startLocalMode(
     message = described.message;
     await resolveMove(before, after);
     const timing = getTiming(speed);
-    const holdMs = described.notable ? timing.reveal + timing.eventBonus : 0;
-    setTimeout(scheduleBotTurnIfNeeded, holdMs);
+    await sleep(described.notable ? timing.reveal + timing.eventBonus : 0);
+    runTurn();
   }
 
-  function scheduleBotTurnIfNeeded(): void {
-    if (paused || state.gameStatus === "FINISHED") return;
-    const current = state.players[state.currentPlayerIndex];
-    if (current.id === HUMAN_ID) return;
+  // Drives whoever's turn it currently is, in two phases (rules 20-26,
+  // section 22/45): first, if they already have a card that survived a full
+  // round, it resolves on its own — its own message, its own discard
+  // animation — *before* anyone picks a new card, never bundled into the
+  // same beat as the next play. Only then does the current player (human:
+  // wait for a click; bot: think, then play) actually put a new card down.
+  async function runTurn(): Promise<void> {
+    if (paused || isFinished()) return;
+    let current = state.players[state.currentPlayerIndex];
+
+    // A loop, not a single check: resolving one player's push-through can
+    // itself advance the turn (rule 14 — their hand was already empty, so
+    // clearing this card just won them the game with nothing left to play),
+    // which could hand the turn to someone who *also* has a card waiting to
+    // resolve the exact same way.
+    while (state.activeCards.some((ac) => ac.playerId === current.id)) {
+      const before = state;
+      const after = resolveTurnStart(state, current.id);
+      const described = describeMove(before, after, current.id);
+      message = described.message;
+      await resolveMove(before, after);
+      const timing = getTiming(speed);
+      await sleep(timing.reveal + timing.eventBonus);
+      if (paused || isFinished()) return;
+      current = state.players[state.currentPlayerIndex];
+    }
+
+    if (current.id === HUMAN_ID) {
+      message = current.hand.length === 0 ? "" : "당신의 차례입니다. 카드를 선택하세요.";
+      render();
+      return;
+    }
 
     const timing = getTiming(speed);
     message = `${current.name}의 차례입니다...`;
     render();
+    await sleep(timing.think);
+    if (paused) return;
 
-    setTimeout(async () => {
-      if (paused) return;
-      const before = state;
-      const cardId = chooseBotMove(state, current.id);
-      const after = playCard(state, current.id, cardId);
-      const described = describeMove(before, after, current.id);
-      message = described.message || `${current.name}가 카드를 냈습니다.`;
-      await resolveMove(before, after);
-      const holdMs = timing.reveal + (described.notable ? timing.eventBonus : 0);
-      setTimeout(scheduleBotTurnIfNeeded, holdMs);
-    }, timing.think);
+    const before = state;
+    const cardId = chooseBotMove(state, current.id);
+    const after = playCard(state, current.id, cardId);
+    const described = describeMove(before, after, current.id);
+    message = described.message || `${current.name}가 카드를 냈습니다.`;
+    await resolveMove(before, after);
+    await sleep(timing.reveal + (described.notable ? timing.eventBonus : 0));
+    runTurn();
   }
 
   // Shows the move's result (played card, flush, alliance) immediately, but
@@ -157,7 +191,11 @@ export function startLocalMode(
   }
 
   render();
-  scheduleBotTurnIfNeeded();
+  runTurn();
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

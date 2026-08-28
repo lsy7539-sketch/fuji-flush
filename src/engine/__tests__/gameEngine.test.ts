@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ActiveCard, Card, GameState, Player } from "../types";
-import { createGame, getActiveGroups, playCard } from "../gameEngine";
+import { createGame, getActiveGroups, playCard, resolveTurnStart } from "../gameEngine";
 
 function card(id: string, value: number): Card {
   return { id, value };
@@ -441,5 +441,79 @@ describe("RULES.md 53장 — 공식 예시 테스트", () => {
     for (const p of state.players) expect(p.hand).toHaveLength(5);
     expect(state.players.map((p) => p.id)).toEqual(ids);
     expect(state.currentPlayerIndex).toBe(0); // Human부터 시작
+  });
+});
+
+describe("resolveTurnStart — 새 카드를 내기 전에 살아남은 카드만 먼저 정리한다", () => {
+  it("살아남은 카드가 없으면 아무것도 바뀌지 않는다", () => {
+    const state = makeState({
+      players: [player("A", [card("a-1", 3)]), player("B", [])],
+      currentPlayerIndex: 0,
+    });
+    const next = resolveTurnStart(state, "A");
+    expect(next.activeCards).toEqual([]);
+    expect(next.discardPile).toEqual([]);
+    expect(next.players.find((p) => p.id === "A")!.hand).toEqual([card("a-1", 3)]);
+  });
+
+  it("연합 없이 혼자 살아남은 카드를 드로우 없이 버린다", () => {
+    const state = makeState({
+      players: [player("A", [card("a-1", 3)])],
+      activeCards: [active("A", 7, "a-7")],
+      drawPile: [card("d-1", 9)],
+      currentPlayerIndex: 0,
+    });
+    const next = resolveTurnStart(state, "A");
+    expect(next.activeCards).toEqual([]);
+    expect(next.discardPile).toEqual([{ id: "a-7", value: 7 }]);
+    expect(next.players.find((p) => p.id === "A")!.hand).toEqual([card("a-1", 3)]); // 드로우 없음
+    expect(next.drawPile).toEqual([card("d-1", 9)]); // 드로우 더미도 그대로
+  });
+
+  it("연합 상대의 카드도 함께 버려지고, 둘 다 즉시 승리할 수 있다", () => {
+    const state = makeState({
+      players: [player("A", []), player("B", [])],
+      activeCards: [active("A", 7, "a-7"), active("B", 7, "b-7")],
+      currentPlayerIndex: 0,
+    });
+    const next = resolveTurnStart(state, "A");
+    expect(next.activeCards).toEqual([]);
+    expect(next.discardPile.map((c) => c.id).sort()).toEqual(["a-7", "b-7"]);
+    expect(next.players.find((p) => p.id === "A")!.isWinner).toBe(true);
+    expect(next.players.find((p) => p.id === "B")!.isWinner).toBe(true); // B는 자기 턴이 아니어도 승리
+  });
+
+  it("resolveTurnStart 뒤에 playCard를 호출해도 중복 정리하지 않고 새 카드만 낸다", () => {
+    const state = makeState({
+      players: [player("A", [card("a-9", 9)]), player("B", [card("b-13", 13)])],
+      activeCards: [active("A", 7, "a-7"), active("B", 7, "b-7")],
+      currentPlayerIndex: 0,
+    });
+    const afterCleanup = resolveTurnStart(state, "A");
+    const afterPlay = playCard(afterCleanup, "A", "a-9");
+
+    expect(afterPlay.activeCards).toEqual([
+      { cardId: "a-9", playerId: "A", value: 9, playedAtTurn: 1, groupId: null },
+    ]);
+    // 두 번 버려지지 않고, 연합 7 두 장만 discardPile에 있어야 한다
+    expect(afterPlay.discardPile.map((c) => c.id).sort()).toEqual(["a-7", "b-7"]);
+  });
+});
+
+describe("resolveTurnStart — 손패가 이미 비어있는 채로 자기 턴이 온 경우 (규칙 14)", () => {
+  it("카드가 살아남아 버려지자마자 즉시 승리하고, 낼 카드가 없으니 턴을 넘긴다", () => {
+    const state = makeState({
+      players: [player("A", []), player("B", [card("b-1", 3)])],
+      activeCards: [active("A", 7, "a-7")],
+      currentPlayerIndex: 0,
+    });
+
+    const next = resolveTurnStart(state, "A");
+
+    expect(next.players.find((p) => p.id === "A")!.isWinner).toBe(true);
+    expect(next.activeCards).toEqual([]);
+    expect(next.discardPile).toEqual([{ id: "a-7", value: 7 }]);
+    // A에게는 더 낼 카드가 없으니 턴이 B에게 넘어가 있어야 한다.
+    expect(next.players[next.currentPlayerIndex].id).toBe("B");
   });
 });

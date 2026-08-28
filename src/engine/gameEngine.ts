@@ -150,6 +150,53 @@ function advanceTurn(state: GameState): void {
  * push-through while their hand is already empty has nothing left to play —
  * they win right there (rule 14) instead of reaching step 2.
  */
+// Step 1 of a turn: push-through cleanup of this player's surviving active
+// card, if any. Rule 23-26: any other still-active card sharing the same raw
+// value (i.e. an ally in the same Joining Forces group) survives right
+// alongside it and is discarded together — with no draw for any of them,
+// current player or ally. An ally whose card is cleared here simply finds
+// `activeCards` empty for them when their own turn eventually starts (rule
+// 26). Mutates `next` in place; shared by `resolveTurnStart` and `playCard`
+// so calling one and then the other is always safe (the second call just
+// finds nothing left to clean up).
+function applyPushThroughCleanup(next: GameState, playerId: string): void {
+  const existingActive = next.activeCards.find((ac) => ac.playerId === playerId);
+  if (!existingActive) return;
+  const survivingGroup = computeGroups(next.activeCards).get(existingActive.value)!;
+  for (const member of survivingGroup.cards) {
+    removeActiveCard(next, member.cardId);
+    next.discardPile.push({ id: member.cardId, value: member.value });
+  }
+  checkWinners(next);
+}
+
+/**
+ * Resolves just the turn-start half of rules 20-26 for `playerId` — discards
+ * a surviving active card (and any ally sharing its value) with no draw, and
+ * checks winners — without touching their hand or the turn order. Exists so
+ * a UI can show this as its own beat (section 45: "살아남았습니다!" first,
+ * separately from whatever the player plays next) instead of only ever
+ * seeing it bundled into the same transition as their next `playCard` call.
+ * Safe to skip: `playCard` runs the same cleanup itself if this wasn't
+ * called first.
+ */
+export function resolveTurnStart(state: GameState, playerId: string): GameState {
+  const next = cloneState(state);
+  const currentPlayer = next.players[next.currentPlayerIndex];
+  if (!currentPlayer || currentPlayer.id !== playerId) {
+    throw new GameError(`지금은 ${currentPlayer?.id ?? "알 수 없음"}의 차례입니다.`);
+  }
+  applyPushThroughCleanup(next, playerId);
+  // Rule 14: if their hand was already empty, clearing this card just won
+  // them the game (checkWinners inside the cleanup already caught it) — there
+  // is no "play a new card" step left to wait for, so move on ourselves,
+  // the same as playCard's own empty-hand branch does.
+  if (currentPlayer.hand.length === 0) {
+    advanceTurn(next);
+  }
+  return next;
+}
+
 export function playCard(state: GameState, playerId: string, cardId?: string): GameState {
   const next = cloneState(state);
   const currentPlayer = next.players[next.currentPlayerIndex];
@@ -161,22 +208,7 @@ export function playCard(state: GameState, playerId: string, cardId?: string): G
     throw new GameError(`${playerId}는 이미 승리하여 더 이상 플레이할 수 없습니다.`);
   }
 
-  // Step 1: push-through cleanup of this player's surviving active card, if any.
-  // Rule 23-26: any other still-active card sharing the same raw value (i.e. an
-  // ally in the same Joining Forces group) survives right alongside it and is
-  // discarded together — with no draw for any of them, current player or ally.
-  // Only the current player goes on to play a new card this turn (step 2+);
-  // an ally whose card is cleared here simply finds `activeCards` empty for
-  // them when their own turn eventually starts (rule 26).
-  const existingActive = next.activeCards.find((ac) => ac.playerId === playerId);
-  if (existingActive) {
-    const survivingGroup = computeGroups(next.activeCards).get(existingActive.value)!;
-    for (const member of survivingGroup.cards) {
-      removeActiveCard(next, member.cardId);
-      next.discardPile.push({ id: member.cardId, value: member.value });
-    }
-    checkWinners(next);
-  }
+  applyPushThroughCleanup(next, playerId);
 
   if (currentPlayer.hand.length === 0) {
     checkWinners(next);
