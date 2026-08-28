@@ -166,7 +166,7 @@ input:focus-visible {
   transition: transform 120ms ease, filter 120ms ease;
 }
 
-.setup button:first-of-type,
+.setup > button:first-of-type,
 .setup #create-btn,
 .setup #start-btn,
 .setup #mode-local {
