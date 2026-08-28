@@ -64,8 +64,8 @@ function renderLocalSetup(): void {
     <h1>Fuji Flush · 혼자하기</h1>
     <label for="player-count">전체 인원 수 (나 + AI, 3~8명)</label>
     <input type="number" id="player-count" min="3" max="8" value="4" />
-    <label>AI 진행 속도</label>
-    <div class="toggle-group" role="group" aria-label="AI 진행 속도">
+    <label>게임 진행 속도</label>
+    <div class="toggle-group" role="group" aria-label="게임 진행 속도">
       ${(["slow", "normal", "fast"] as Speed[])
         .map(
           (s) =>

@@ -109,6 +109,10 @@ p {
 
 button {
   font-family: var(--font-body);
+  /* mobile Safari/Chrome otherwise leave a lingering gray "pressed" tint on
+     whichever button was last tapped, which reads as two buttons active at
+     once next to a real .active state */
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:focus-visible,
