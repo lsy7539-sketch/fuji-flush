@@ -72,20 +72,6 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     container.appendChild(opponentsEl);
   }
 
-  // The running commentary sits centered right above the table, not up in
-  // the header — it's describing what just happened on the table, so it
-  // reads better anchored to it than to the title bar.
-  if (callbacks.message || isFinished || callbacks.paused) {
-    const commentary = document.createElement("div");
-    commentary.className = "table-message";
-    commentary.innerHTML = `
-      ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
-      ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
-      ${callbacks.paused ? `<div class="message pause">일시정지됨 — ▶ 버튼을 눌러 계속하세요</div>` : ""}
-    `;
-    container.appendChild(commentary);
-  }
-
   // Draw pile / discard pile sit on the table itself, between everyone's
   // seats and the viewer's own hand — a fixed landmark the draw animation
   // flies cards out of (see #draw-pile in drawAnimation.ts).
@@ -109,6 +95,21 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     </div>
   `;
   container.appendChild(centerTable);
+
+  // The running commentary sits centered right above the viewer's own
+  // table/hand — below the piles, not up in the header — since it's
+  // describing what just happened, and that's the thing they're about to
+  // act on next.
+  if (callbacks.message || isFinished || callbacks.paused) {
+    const commentary = document.createElement("div");
+    commentary.className = "table-message";
+    commentary.innerHTML = `
+      ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
+      ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
+      ${callbacks.paused ? `<div class="message pause">일시정지됨 — ▶ 버튼을 눌러 계속하세요</div>` : ""}
+    `;
+    container.appendChild(commentary);
+  }
 
   // The viewer's own hand: the one thing that actually gets laid out nicely.
   const viewer = view.players.find((p) => p.id === view.viewerId);
