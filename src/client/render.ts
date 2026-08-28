@@ -5,6 +5,9 @@ import { getHandSort, setHandSort, sortByValue } from "./handSort";
 export interface BoardCallbacks {
   message: string;
   paused: boolean;
+  /** id of a hand card the viewer just drew, to highlight — cleared by the
+   *  caller once it's no longer "new" (e.g. once they act on their turn). */
+  newCardId?: string | null;
   onPlayCard: (playerId: string, cardId?: string) => void;
   onBack: () => void;
   onTogglePause: () => void;
@@ -40,9 +43,6 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
           : ""
       }
     </div>
-    ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
-    ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
-    ${callbacks.paused ? `<div class="message pause">일시정지됨 — ▶ 버튼을 눌러 계속하세요</div>` : ""}
   `;
   container.appendChild(header);
 
@@ -70,6 +70,20 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       opponentsEl.appendChild(chip);
     }
     container.appendChild(opponentsEl);
+  }
+
+  // The running commentary sits centered right above the table, not up in
+  // the header — it's describing what just happened on the table, so it
+  // reads better anchored to it than to the title bar.
+  if (callbacks.message || isFinished || callbacks.paused) {
+    const commentary = document.createElement("div");
+    commentary.className = "table-message";
+    commentary.innerHTML = `
+      ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
+      ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
+      ${callbacks.paused ? `<div class="message pause">일시정지됨 — ▶ 버튼을 눌러 계속하세요</div>` : ""}
+    `;
+    container.appendChild(commentary);
   }
 
   // Draw pile / discard pile sit on the table itself, between everyone's
@@ -108,7 +122,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       sortedCards
         .map(
           (card) =>
-            `<button class="hand-card" data-card-id="${card.id}" data-player-id="${viewer.id}" ${
+            `<button class="hand-card${card.id === callbacks.newCardId ? " is-new" : ""}" data-card-id="${card.id}" data-player-id="${viewer.id}" ${
               canPlay ? "" : "disabled"
             }>${card.value}</button>`,
         )

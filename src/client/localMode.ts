@@ -23,12 +23,17 @@ export function startLocalMode(
   let state: GameState = createGame(buildPlayerDefs(playerCount));
   let message = "";
   let paused = false;
+  // The viewer's own most recently drawn card, so the hand can mark it — set
+  // when it lands (resolveMove) and cleared once the viewer acts on their
+  // own turn (they've had a chance to notice it by then).
+  let newCardId: string | null = null;
   const speed = getSpeed();
 
   function render(): void {
     renderBoard(app, toPlayerView(state, HUMAN_ID), {
       message,
       paused,
+      newCardId,
       onPlayCard: handlePlayCard,
       onBack,
       onTogglePause: togglePause,
@@ -55,6 +60,7 @@ export function startLocalMode(
 
   async function handlePlayCard(playerId: string, cardId?: string): Promise<void> {
     if (paused) return;
+    newCardId = null;
     const before = state;
     let after: GameState;
     try {
@@ -172,15 +178,16 @@ export function startLocalMode(
     // Always land the final state once every animation finishes, even if the
     // game got paused mid-flight — otherwise a card would be stuck in limbo
     // (still on the table, or missing from every hand) until it un-pauses.
+    const humanDraw = drawEvents.find((e) => e.playerId === HUMAN_ID);
+    if (humanDraw) newCardId = humanDraw.cardId;
     state = after;
     render();
 
-    // Mark whichever of the viewer's own hand cards just arrived, so it's
-    // obvious which one is new — a fresh render() next turn drops the class
-    // again on its own, no cleanup needed.
-    for (const e of drawEvents) {
-      if (e.playerId !== HUMAN_ID) continue;
-      app.querySelector<HTMLElement>(`.hand-card[data-card-id="${e.cardId}"]`)?.classList.add("just-drawn");
+    // The render above already marks it (.is-new, from newCardId) in a way
+    // that survives every later re-render until the viewer acts — this is
+    // just the one-shot arrival pulse on top of that, for this instant only.
+    if (humanDraw) {
+      app.querySelector<HTMLElement>(`.hand-card[data-card-id="${humanDraw.cardId}"]`)?.classList.add("just-drawn");
     }
   }
 

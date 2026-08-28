@@ -341,6 +341,14 @@ input:focus-visible {
   font-weight: 600;
 }
 
+.table-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: center;
+}
+
 .message {
   padding: 0.6rem 0.9rem;
   background: color-mix(in srgb, var(--danger) 15%, transparent);
@@ -669,6 +677,7 @@ input:focus-visible {
 }
 
 .hand-card {
+  position: relative;
   cursor: pointer;
   background: var(--card-face);
   color: var(--card-ink);
@@ -678,6 +687,25 @@ input:focus-visible {
   font-weight: 700;
   box-shadow: 0 3px 8px var(--card-shadow);
   transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+/* .is-new is render-driven (state.newCardId) and survives every re-render
+   until the viewer acts, unlike .just-drawn's one-shot arrival pulse below —
+   so it's a plain static badge, not another animation that would replay on
+   every intervening bot-turn render. */
+.hand-card.is-new::after {
+  content: "NEW";
+  position: absolute;
+  top: -0.55rem;
+  right: -0.4rem;
+  font-family: var(--font-body);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--wood);
+  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
+  border-radius: 999px;
+  padding: 0.1rem 0.35rem;
 }
 
 .hand-card:disabled {
