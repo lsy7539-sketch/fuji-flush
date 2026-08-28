@@ -96,7 +96,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     <div class="pile discard-pile" id="discard-pile">
       ${
         view.topDiscard
-          ? `<div class="seat-card"><span class="value">${view.topDiscard.value}</span></div>`
+          ? `<div class="pile-top-card"><span>${view.topDiscard.value}</span></div>`
           : `<div class="pile-empty">-</div>`
       }
       <span class="pile-count">${view.discardPileCount}</span>
@@ -146,6 +146,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     myHandEl.innerHTML = `
       ${isCurrent ? `<span class="turn-flag">현재 턴</span>` : ""}
       <div class="my-hand-header">
+        <button class="shout-alliance-btn" id="shout-alliance-btn" type="button" title="연합!! 외치기">🤝 연합!</button>
         ${badges}
         <div class="toggle-group sort-toggle" role="group" aria-label="손패 정렬">
           <button class="toggle-btn${handSort === "asc" ? " active" : ""}" data-sort-option="asc">낮은순</button>
@@ -181,9 +182,22 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       renderBoard(app, view, callbacks);
     });
   });
+  container.querySelector("#shout-alliance-btn")?.addEventListener("click", shoutAlliance);
   container.querySelector("#ctrl-back")!.addEventListener("click", callbacks.onBack);
   container.querySelector("#ctrl-pause")!.addEventListener("click", callbacks.onTogglePause);
   container.querySelector("#ctrl-quit")!.addEventListener("click", callbacks.onQuit);
+}
+
+// Purely for fun — a big "연합!!!" banner the viewer can trigger themselves
+// any time, unrelated to whether an actual alliance is happening on the
+// table. A fixed overlay (like the flying-card animation) so it plays over
+// whatever's on screen and removes itself when done.
+function shoutAlliance(): void {
+  const banner = document.createElement("div");
+  banner.className = "alliance-banner";
+  banner.innerHTML = `<span class="alliance-banner-text">🤝 연합!!! 🤝</span>`;
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 1400);
 }
 
 // "1등 · 이름" down to however many have finished, next to the discard pile.

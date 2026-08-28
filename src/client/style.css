@@ -804,9 +804,93 @@ input:focus-visible {
   font-size: 0.85rem;
 }
 
+/* the discard pile's top card — deliberately the same small size as the
+   draw pile next to it, not the bigger .seat-card size used for cards
+   actually down on someone's table. */
+.pile-top-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 3.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--card-face);
+  border: 1px solid var(--card-border-subtle);
+  box-shadow: 0 4px 10px var(--card-shadow-strong);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--card-ink);
+}
+
 .pile-count {
   font-size: 0.78rem;
   color: var(--text-dim);
+}
+
+.shout-alliance-btn {
+  cursor: pointer;
+  border: 1px solid var(--gold);
+  background: transparent;
+  color: var(--gold-soft);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.78rem;
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.shout-alliance-btn:hover {
+  background: color-mix(in srgb, var(--gold) 15%, transparent);
+  transform: translateY(-1px) scale(1.04);
+}
+
+.shout-alliance-btn:active {
+  transform: scale(0.96);
+}
+
+/* pure fanfare, triggered by .shout-alliance-btn — not tied to game state */
+.alliance-banner {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.alliance-banner-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 10vw, 4rem);
+  color: var(--gold-soft);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--gold) 70%, transparent), 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: alliance-banner-pop 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes alliance-banner-pop {
+  0% {
+    transform: scale(0.3) rotate(-6deg);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.15) rotate(2deg);
+    opacity: 1;
+  }
+  35% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.05) rotate(0deg);
+    opacity: 0;
+  }
 }
 
 .flying-card {
@@ -1145,6 +1229,7 @@ input:focus-visible {
   .pass-btn,
   .opponent,
   .my-hand,
+  .shout-alliance-btn,
   .ctrl-btn {
     transition: none;
   }
@@ -1152,7 +1237,8 @@ input:focus-visible {
     transform: none;
   }
   .hand-card.just-drawn,
-  .turn-flag {
+  .turn-flag,
+  .alliance-banner-text {
     animation: none;
   }
 }
