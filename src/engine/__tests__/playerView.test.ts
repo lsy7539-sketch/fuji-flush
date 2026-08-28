@@ -59,19 +59,26 @@ describe("toPlayerView", () => {
     expect(b.handSize).toBe(2);
   });
 
-  it("드로우/버림 더미는 개수만 노출한다", () => {
+  it("드로우 더미는 개수만, 버림 더미는 개수와 맨 위 카드를 노출한다", () => {
     const state = makeState({
       players: [player("A", [])],
       drawPile: [card("d1", 2), card("d2", 3), card("d3", 4)],
-      discardPile: [card("x1", 20)],
+      discardPile: [card("x1", 20), card("x2", 9)],
     });
 
     const view = toPlayerView(state, "A");
 
     expect(view.drawPileCount).toBe(3);
-    expect(view.discardPileCount).toBe(1);
+    expect(view.discardPileCount).toBe(2);
+    expect(view.topDiscard).toEqual(card("x2", 9));
     expect(view).not.toHaveProperty("drawPile");
     expect(view).not.toHaveProperty("discardPile");
+  });
+
+  it("버림 더미가 비어있으면 topDiscard는 null이다", () => {
+    const state = makeState({ players: [player("A", [])] });
+    const view = toPlayerView(state, "A");
+    expect(view.topDiscard).toBeNull();
   });
 
   it("테이블에 낸 카드(activeCards)는 그대로 전달한다", () => {

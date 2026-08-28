@@ -34,8 +34,6 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       </div>
     </div>
     <div class="stats">
-      <span class="stat">드로우 <b>${view.drawPileCount}</b></span>
-      <span class="stat">버림 <b>${view.discardPileCount}</b></span>
       ${
         !isFinished
           ? `<span class="stat stat-turn">지금은 <b>${currentPlayer?.id === view.viewerId ? "나" : currentPlayer?.name}</b>의 차례</span>`
@@ -62,6 +60,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
 
       const chip = document.createElement("div");
       chip.className = "opponent" + (isCurrent ? " current" : "") + (p.isWinner ? " winner" : "");
+      chip.dataset.playerId = p.id;
       chip.innerHTML = `
         ${isCurrent ? `<span class="turn-flag">현재 턴</span>` : ""}
         <div class="opponent-name"><span>${p.name}</span>${badges}</div>
@@ -72,6 +71,30 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     }
     container.appendChild(opponentsEl);
   }
+
+  // Draw pile / discard pile sit on the table itself, between everyone's
+  // seats and the viewer's own hand — a fixed landmark the draw animation
+  // flies cards out of (see #draw-pile in drawAnimation.ts).
+  const centerTable = document.createElement("div");
+  centerTable.className = "center-table";
+  centerTable.innerHTML = `
+    <div class="pile draw-pile" id="draw-pile">
+      <div class="pile-cards">
+        <span class="pile-card-back"></span>
+        <span class="pile-card-back"></span>
+      </div>
+      <span class="pile-count">${view.drawPileCount}</span>
+    </div>
+    <div class="pile discard-pile" id="discard-pile">
+      ${
+        view.topDiscard
+          ? `<div class="seat-card"><span class="value">${view.topDiscard.value}</span></div>`
+          : `<div class="pile-empty">-</div>`
+      }
+      <span class="pile-count">${view.discardPileCount}</span>
+    </div>
+  `;
+  container.appendChild(centerTable);
 
   // The viewer's own hand: the one thing that actually gets laid out nicely.
   const viewer = view.players.find((p) => p.id === view.viewerId);
@@ -99,13 +122,13 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     myHandEl.innerHTML = `
       ${isCurrent ? `<span class="turn-flag">현재 턴</span>` : ""}
       <div class="my-hand-header">
-        <span>내 손패</span>${badges}
+        ${badges}
         <div class="toggle-group sort-toggle" role="group" aria-label="손패 정렬">
           <button class="toggle-btn${handSort === "asc" ? " active" : ""}" data-sort-option="asc">낮은순</button>
           <button class="toggle-btn${handSort === "desc" ? " active" : ""}" data-sort-option="desc">높은순</button>
         </div>
       </div>
-      ${renderSeatCards(view, viewer.id, "내가 낸 카드")}
+      ${renderSeatCards(view, viewer.id)}
       <div class="hand">${handHtml}</div>
       ${
         canPlay && viewer.handSize === 0
@@ -143,7 +166,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
 // hand, for the viewer) instead of in one shared table area — a joined
 // (Joining Forces) card additionally carries the group's combined POWER so
 // it's clear why it survived or flushed something (rules 11-19).
-function renderSeatCards(view: PlayerFacingState, playerId: string, label?: string): string {
+function renderSeatCards(view: PlayerFacingState, playerId: string): string {
   const own = view.activeCards.filter((ac) => ac.playerId === playerId);
   if (own.length === 0) return "";
   const groups = getActiveGroups(view.activeCards);
@@ -161,5 +184,5 @@ function renderSeatCards(view: PlayerFacingState, playerId: string, label?: stri
     })
     .join("");
 
-  return `<div class="seat-cards">${label ? `<span class="seat-cards-label">${label}</span>` : ""}${cardsHtml}</div>`;
+  return `<div class="seat-cards">${cardsHtml}</div>`;
 }

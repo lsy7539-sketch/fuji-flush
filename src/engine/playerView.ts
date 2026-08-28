@@ -13,6 +13,9 @@ export interface PlayerFacingState {
   players: HandView[];
   drawPileCount: number;
   discardPileCount: number;
+  /** the most recently discarded card, face up — discards are already public
+   *  once played, so showing the top of the pile leaks nothing. */
+  topDiscard: Card | null;
   currentPlayerIndex: number;
   gameStatus: GameStatus;
   round: number;
@@ -38,6 +41,7 @@ export function toPlayerView(state: GameState, viewerId: string): PlayerFacingSt
     })),
     drawPileCount: state.drawPile.length,
     discardPileCount: state.discardPile.length,
+    topDiscard: state.discardPile.length > 0 ? { ...state.discardPile[state.discardPile.length - 1] } : null,
     currentPlayerIndex: state.currentPlayerIndex,
     gameStatus: state.gameStatus,
     round: state.round,

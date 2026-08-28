@@ -1,6 +1,7 @@
 import { chooseBotMove } from "../ai/botPlayer";
 import { GameError, createGame, playCard } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
+import { computeDrawEvents, flyCardToPlayer } from "./drawAnimation";
 import { getSpeed, getTiming } from "./speed";
 import type { GameState } from "../engine/types";
 import { renderBoard } from "./render";
@@ -45,11 +46,12 @@ export function startLocalMode(
     if (!paused) scheduleBotTurnIfNeeded();
   }
 
-  function handlePlayCard(playerId: string, cardId?: string): void {
+  async function handlePlayCard(playerId: string, cardId?: string): Promise<void> {
     if (paused) return;
     const before = state;
+    let after: GameState;
     try {
-      state = playCard(state, playerId, cardId);
+      after = playCard(state, playerId, cardId);
     } catch (err) {
       if (err instanceof GameError) {
         message = err.message;
@@ -58,9 +60,9 @@ export function startLocalMode(
       }
       throw err;
     }
-    const described = describeMove(before, state, playerId);
+    const described = describeMove(before, after, playerId);
     message = described.message;
-    render();
+    await revealAndDraw(before, after);
     const timing = getTiming(speed);
     const holdMs = described.notable ? timing.reveal + timing.eventBonus : 0;
     setTimeout(scheduleBotTurnIfNeeded, holdMs);
@@ -75,17 +77,59 @@ export function startLocalMode(
     message = `${current.name}의 차례입니다...`;
     render();
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (paused) return;
       const before = state;
       const cardId = chooseBotMove(state, current.id);
-      state = playCard(state, current.id, cardId);
-      const described = describeMove(before, state, current.id);
+      const after = playCard(state, current.id, cardId);
+      const described = describeMove(before, after, current.id);
       message = described.message || `${current.name}가 카드를 냈습니다.`;
-      render();
+      await revealAndDraw(before, after);
       const holdMs = timing.reveal + (described.notable ? timing.eventBonus : 0);
       setTimeout(scheduleBotTurnIfNeeded, holdMs);
     }, timing.think);
+  }
+
+  // Shows the move's result (played card, flush, alliance) immediately, but
+  // holds any newly-drawn card out of its owner's hand until a flying-card
+  // animation from the draw pile actually lands, so the count on screen
+  // doesn't jump ahead of what the player sees happen (rule 35, section 43).
+  async function revealAndDraw(before: GameState, after: GameState): Promise<void> {
+    const drawEvents = computeDrawEvents(before, after);
+    if (drawEvents.length === 0) {
+      state = after;
+      render();
+      return;
+    }
+
+    const drawnCardIds = new Set(drawEvents.map((e) => e.cardId));
+    state = {
+      ...after,
+      players: after.players.map((p) => ({
+        ...p,
+        hand: p.hand.filter((c) => !drawnCardIds.has(c.id)),
+      })),
+    };
+    render();
+
+    const fromEl = app.querySelector<HTMLElement>("#draw-pile");
+    if (fromEl) {
+      await Promise.all(
+        drawEvents.map((e) => {
+          const toEl =
+            e.playerId === HUMAN_ID
+              ? app.querySelector<HTMLElement>(".hand")
+              : app.querySelector<HTMLElement>(`.opponent[data-player-id="${e.playerId}"]`);
+          return toEl ? flyCardToPlayer(e.value, fromEl, toEl) : Promise.resolve();
+        }),
+      );
+    }
+
+    // Always land the final state once the animation finishes, even if the
+    // game got paused mid-flight — otherwise the drawn card would be stuck
+    // in limbo (missing from every hand) until the game un-pauses.
+    state = after;
+    render();
   }
 
   render();
