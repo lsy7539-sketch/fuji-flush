@@ -64,7 +64,8 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       chip.innerHTML = `
         ${isCurrent ? `<span class="turn-flag">현재 턴</span>` : ""}
         <div class="opponent-name"><span>${p.name}</span>${badges}</div>
-        <div class="opponent-count"><span class="mini-back"></span>${p.handSize}장</div>
+        <div class="opponent-count">${p.handSize}장</div>
+        ${renderMiniBackFan(p.handSize)}
         ${renderSeatCards(view, p.id)}
       `;
       opponentsEl.appendChild(chip);
@@ -175,6 +176,13 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   container.querySelector("#ctrl-back")!.addEventListener("click", callbacks.onBack);
   container.querySelector("#ctrl-pause")!.addEventListener("click", callbacks.onTogglePause);
   container.querySelector("#ctrl-quit")!.addEventListener("click", callbacks.onQuit);
+}
+
+// Remaining hand size as that many card backs (fanned with overlap), right
+// below the "N장" count, rather than making the number the only cue.
+function renderMiniBackFan(count: number): string {
+  if (count === 0) return "";
+  return `<div class="mini-back-fan">${`<span class="mini-back"></span>`.repeat(count)}</div>`;
 }
 
 // A player's own active card(s), shown right on their seat (or above their

@@ -513,6 +513,7 @@ input:focus-visible {
 
 .mini-back {
   display: inline-block;
+  flex-shrink: 0;
   width: 0.85rem;
   height: 1.15rem;
   border-radius: 3px;
@@ -524,6 +525,16 @@ input:focus-visible {
     var(--gold) 3px
   );
   border: 1px solid var(--line);
+}
+
+/* the actual card count, drawn as that many card backs instead of just a
+   number — fanned with overlap so 8 of them still fit a narrow seat. */
+.mini-back-fan {
+  display: flex;
+}
+
+.mini-back-fan .mini-back:not(:first-child) {
+  margin-left: -0.5rem;
 }
 
 /* draw pile / discard pile — sit on the table between everyone's seats and
@@ -893,6 +904,38 @@ input:focus-visible {
 
 .revoke-btn:hover {
   background: color-mix(in srgb, var(--danger) 15%, transparent);
+}
+
+/* narrow phones: a wrapped, off-center grid of opponent seats and a hand
+   that spills onto a second row both read as clutter — line each up into
+   one horizontally-scrollable row instead. */
+@media (max-width: 520px) {
+  body {
+    padding: 1.75rem 0.75rem;
+  }
+
+  .opponents {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 0.2rem 0.1rem 0.6rem;
+  }
+
+  .opponent {
+    flex-shrink: 0;
+    min-width: 6rem;
+  }
+
+  .hand {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 0.2rem 0.1rem 0.5rem;
+  }
+
+  .hand-card {
+    flex-shrink: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
