@@ -1,13 +1,14 @@
 const FLY_DURATION_MS = 550;
 
 /**
- * Animates a single card flying from `fromEl` (the draw pile) to `toEl` (the
- * drawing player's seat, or the viewer's own hand) — purely cosmetic, a fixed
+ * Animates a single card flying from `fromEl` to `toEl` — the draw pile to a
+ * seat when a card is drawn, or a seat to the discard pile when one is
+ * discarded (Flush or a successful push-through). Purely cosmetic: a fixed
  * overlay appended to <body> so it survives the next renderBoard() wiping out
  * the board underneath it. Resolves once the animation has finished and the
  * overlay element has been removed.
  */
-export function flyCardToPlayer(value: number, fromEl: HTMLElement, toEl: HTMLElement): Promise<void> {
+export function flyCard(value: number, fromEl: HTMLElement, toEl: HTMLElement): Promise<void> {
   const fromRect = fromEl.getBoundingClientRect();
   const toRect = toEl.getBoundingClientRect();
 
@@ -59,4 +60,26 @@ export function computeDrawEvents(
     }
   }
   return events;
+}
+
+export interface DiscardEvent {
+  playerId: string;
+  cardId: string;
+  value: number;
+}
+
+/**
+ * Finds every active (table) card present before a move and gone after it —
+ * a Flush victim's card, or a push-through survivor's own card — regardless
+ * of *why* it left, so the seat-to-discard-pile animation always has
+ * something concrete to fly.
+ */
+export function computeDiscardEvents(
+  before: { activeCards: { cardId: string; playerId: string; value: number }[] },
+  after: { activeCards: { cardId: string; playerId: string; value: number }[] },
+): DiscardEvent[] {
+  const afterIds = new Set(after.activeCards.map((ac) => ac.cardId));
+  return before.activeCards
+    .filter((ac) => !afterIds.has(ac.cardId))
+    .map((ac) => ({ playerId: ac.playerId, cardId: ac.cardId, value: ac.value }));
 }

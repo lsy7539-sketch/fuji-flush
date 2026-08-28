@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeDrawEvents } from "../drawAnimation";
+import { computeDiscardEvents, computeDrawEvents } from "../drawAnimation";
 
 describe("computeDrawEvents", () => {
   it("새로 손패에 들어온 카드가 없으면 빈 배열이다", () => {
@@ -44,6 +44,39 @@ describe("computeDrawEvents", () => {
     expect(computeDrawEvents(before, after)).toEqual([
       { playerId: "A", cardId: "a1", value: 4 },
       { playerId: "B", cardId: "b1", value: 6 },
+    ]);
+  });
+});
+
+describe("computeDiscardEvents", () => {
+  it("사라진 activeCard가 없으면 빈 배열이다", () => {
+    const before = { activeCards: [{ cardId: "c1", playerId: "A", value: 5 }] };
+    const after = { activeCards: [{ cardId: "c1", playerId: "A", value: 5 }] };
+    expect(computeDiscardEvents(before, after)).toEqual([]);
+  });
+
+  it("플러시로 사라진 카드를 잡아낸다", () => {
+    const before = {
+      activeCards: [
+        { cardId: "c1", playerId: "A", value: 5 },
+        { cardId: "c2", playerId: "B", value: 8 },
+      ],
+    };
+    const after = { activeCards: [{ cardId: "c2", playerId: "B", value: 8 }] };
+    expect(computeDiscardEvents(before, after)).toEqual([{ playerId: "A", cardId: "c1", value: 5 }]);
+  });
+
+  it("연합이 함께 살아남아 버려지면 둘 다 잡아낸다", () => {
+    const before = {
+      activeCards: [
+        { cardId: "c1", playerId: "A", value: 7 },
+        { cardId: "c2", playerId: "B", value: 7 },
+      ],
+    };
+    const after = { activeCards: [] as { cardId: string; playerId: string; value: number }[] };
+    expect(computeDiscardEvents(before, after)).toEqual([
+      { playerId: "A", cardId: "c1", value: 7 },
+      { playerId: "B", cardId: "c2", value: 7 },
     ]);
   });
 });

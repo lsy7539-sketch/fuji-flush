@@ -1,7 +1,7 @@
 import { chooseBotMove } from "../ai/botPlayer";
 import { GameError, createGame, playCard } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
-import { computeDrawEvents, flyCardToPlayer } from "./drawAnimation";
+import { computeDiscardEvents, computeDrawEvents, flyCard } from "./drawAnimation";
 import { getSpeed, getTiming } from "./speed";
 import type { GameState } from "../engine/types";
 import { renderBoard } from "./render";
@@ -62,7 +62,7 @@ export function startLocalMode(
     }
     const described = describeMove(before, after, playerId);
     message = described.message;
-    await revealAndDraw(before, after);
+    await resolveMove(before, after);
     const timing = getTiming(speed);
     const holdMs = described.notable ? timing.reveal + timing.eventBonus : 0;
     setTimeout(scheduleBotTurnIfNeeded, holdMs);
@@ -84,27 +84,33 @@ export function startLocalMode(
       const after = playCard(state, current.id, cardId);
       const described = describeMove(before, after, current.id);
       message = described.message || `${current.name}가 카드를 냈습니다.`;
-      await revealAndDraw(before, after);
+      await resolveMove(before, after);
       const holdMs = timing.reveal + (described.notable ? timing.eventBonus : 0);
       setTimeout(scheduleBotTurnIfNeeded, holdMs);
     }, timing.think);
   }
 
   // Shows the move's result (played card, flush, alliance) immediately, but
-  // holds any newly-drawn card out of its owner's hand until a flying-card
-  // animation from the draw pile actually lands, so the count on screen
-  // doesn't jump ahead of what the player sees happen (rule 35, section 43).
-  async function revealAndDraw(before: GameState, after: GameState): Promise<void> {
+  // holds a discarded card on its owner's seat and a newly-drawn card out of
+  // its owner's hand until their flying-card animations actually land, so
+  // the board on screen doesn't jump ahead of what the player sees happen
+  // (rules 20-26 and 35, section 43-44).
+  async function resolveMove(before: GameState, after: GameState): Promise<void> {
+    const discardEvents = computeDiscardEvents(before, after);
     const drawEvents = computeDrawEvents(before, after);
-    if (drawEvents.length === 0) {
+
+    if (discardEvents.length === 0 && drawEvents.length === 0) {
       state = after;
       render();
       return;
     }
 
+    const discardedCardIds = new Set(discardEvents.map((e) => e.cardId));
     const drawnCardIds = new Set(drawEvents.map((e) => e.cardId));
+    const stillOnTable = before.activeCards.filter((ac) => discardedCardIds.has(ac.cardId));
     state = {
       ...after,
+      activeCards: [...after.activeCards, ...stillOnTable],
       players: after.players.map((p) => ({
         ...p,
         hand: p.hand.filter((c) => !drawnCardIds.has(c.id)),
@@ -112,24 +118,42 @@ export function startLocalMode(
     };
     render();
 
-    const fromEl = app.querySelector<HTMLElement>("#draw-pile");
-    if (fromEl) {
-      await Promise.all(
-        drawEvents.map((e) => {
-          const toEl =
-            e.playerId === HUMAN_ID
-              ? app.querySelector<HTMLElement>(".hand")
-              : app.querySelector<HTMLElement>(`.opponent[data-player-id="${e.playerId}"]`);
-          return toEl ? flyCardToPlayer(e.value, fromEl, toEl) : Promise.resolve();
-        }),
-      );
+    const drawPileEl = app.querySelector<HTMLElement>("#draw-pile");
+    const discardPileEl = app.querySelector<HTMLElement>("#discard-pile");
+    const flights: Promise<void>[] = [];
+    if (discardPileEl) {
+      for (const e of discardEvents) {
+        const fromEl = getSeatEl(e.playerId);
+        if (fromEl) flights.push(flyCard(e.value, fromEl, discardPileEl));
+      }
     }
+    if (drawPileEl) {
+      for (const e of drawEvents) {
+        const toEl = getSeatEl(e.playerId);
+        if (toEl) flights.push(flyCard(e.value, drawPileEl, toEl));
+      }
+    }
+    await Promise.all(flights);
 
-    // Always land the final state once the animation finishes, even if the
-    // game got paused mid-flight — otherwise the drawn card would be stuck
-    // in limbo (missing from every hand) until the game un-pauses.
+    // Always land the final state once every animation finishes, even if the
+    // game got paused mid-flight — otherwise a card would be stuck in limbo
+    // (still on the table, or missing from every hand) until it un-pauses.
     state = after;
     render();
+
+    // Mark whichever of the viewer's own hand cards just arrived, so it's
+    // obvious which one is new — a fresh render() next turn drops the class
+    // again on its own, no cleanup needed.
+    for (const e of drawEvents) {
+      if (e.playerId !== HUMAN_ID) continue;
+      app.querySelector<HTMLElement>(`.hand-card[data-card-id="${e.cardId}"]`)?.classList.add("just-drawn");
+    }
+  }
+
+  function getSeatEl(playerId: string): HTMLElement | null {
+    return playerId === HUMAN_ID
+      ? app.querySelector<HTMLElement>(".my-hand")
+      : app.querySelector<HTMLElement>(`.opponent[data-player-id="${playerId}"]`);
   }
 
   render();

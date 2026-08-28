@@ -690,6 +690,22 @@ input:focus-visible {
   box-shadow: 0 12px 20px -6px color-mix(in srgb, var(--gold) 50%, transparent);
 }
 
+.hand-card.just-drawn {
+  animation: just-drawn-glow 1.1s ease;
+}
+
+@keyframes just-drawn-glow {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent);
+  }
+  45% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 3px 8px var(--card-shadow);
+  }
+}
+
 .empty-hand {
   color: var(--text-dim);
   font-size: 0.85rem;
@@ -862,5 +878,9 @@ input:focus-visible {
   }
   .hand-card:not(:disabled):hover {
     transform: none;
+  }
+  .hand-card.just-drawn,
+  .turn-flag {
+    animation: none;
   }
 }
