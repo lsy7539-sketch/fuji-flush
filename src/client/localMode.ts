@@ -27,6 +27,10 @@ export function startLocalMode(
   // when it lands (resolveMove) and cleared once the viewer acts on their
   // own turn (they've had a chance to notice it by then).
   let newCardId: string | null = null;
+  // Win order for the little "1등 / 2등 / ..." list next to the discard
+  // pile — the engine only tracks *whether* someone has won, not in what
+  // order, so this is tracked here as it happens (recordNewWinners).
+  const winnerOrder: string[] = [];
   const speed = getSpeed();
 
   function render(): void {
@@ -34,6 +38,7 @@ export function startLocalMode(
       message,
       paused,
       newCardId,
+      winnerOrder,
       onPlayCard: handlePlayCard,
       onBack,
       onTogglePause: togglePause,
@@ -109,7 +114,7 @@ export function startLocalMode(
     }
 
     if (current.id === HUMAN_ID) {
-      message = current.hand.length === 0 ? "" : "당신의 차례입니다. 카드를 선택하세요.";
+      message = current.hand.length === 0 ? "" : "당신 차례예요! 어떤 카드를 내볼까요? 🎴";
       render();
       return;
     }
@@ -136,6 +141,7 @@ export function startLocalMode(
   // the board on screen doesn't jump ahead of what the player sees happen
   // (rules 20-26 and 35, section 43-44).
   async function resolveMove(before: GameState, after: GameState): Promise<void> {
+    recordNewWinners(before, after);
     const discardEvents = computeDiscardEvents(before, after);
     const drawEvents = computeDrawEvents(before, after);
 
@@ -188,6 +194,14 @@ export function startLocalMode(
     // just the one-shot arrival pulse on top of that, for this instant only.
     if (humanDraw) {
       app.querySelector<HTMLElement>(`.hand-card[data-card-id="${humanDraw.cardId}"]`)?.classList.add("just-drawn");
+    }
+  }
+
+  function recordNewWinners(before: GameState, after: GameState): void {
+    for (const p of after.players) {
+      if (!p.isWinner || winnerOrder.includes(p.id)) continue;
+      const wasWinner = before.players.find((b) => b.id === p.id)?.isWinner;
+      if (!wasWinner) winnerOrder.push(p.id);
     }
   }
 

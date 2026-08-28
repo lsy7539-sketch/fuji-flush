@@ -20,9 +20,17 @@ function boot(): void {
     return;
   }
   if (!isAuthed()) {
-    renderLoginGate(app, renderModeSelect);
+    // Only this screen gets vertically centered — a short login card looks
+    // stranded pinned to the top on a tall phone screen, but the same trick
+    // would clip the top off a full game board or the rulebook.
+    document.body.classList.add("center-screen");
+    renderLoginGate(app, () => {
+      document.body.classList.remove("center-screen");
+      renderModeSelect();
+    });
     return;
   }
+  document.body.classList.remove("center-screen");
   renderModeSelect();
 }
 

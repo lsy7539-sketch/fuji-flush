@@ -8,6 +8,9 @@ export interface BoardCallbacks {
   /** id of a hand card the viewer just drew, to highlight — cleared by the
    *  caller once it's no longer "new" (e.g. once they act on their turn). */
   newCardId?: string | null;
+  /** player ids in the order they won, for the "1등 / 2등" list by the
+   *  discard pile — the engine only tracks whether someone won, not when. */
+  winnerOrder?: string[];
   onPlayCard: (playerId: string, cardId?: string) => void;
   onBack: () => void;
   onTogglePause: () => void;
@@ -36,13 +39,6 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
         <button class="ctrl-btn ctrl-quit" id="ctrl-quit" title="나가기" aria-label="나가기">✕</button>
       </div>
     </div>
-    <div class="stats">
-      ${
-        !isFinished
-          ? `<span class="stat stat-turn">지금은 <b>${currentPlayer?.id === view.viewerId ? "나" : currentPlayer?.name}</b>의 차례</span>`
-          : ""
-      }
-    </div>
   `;
   container.appendChild(header);
 
@@ -62,7 +58,6 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       chip.className = "opponent" + (isCurrent ? " current" : "") + (p.isWinner ? " winner" : "");
       chip.dataset.playerId = p.id;
       chip.innerHTML = `
-        ${isCurrent ? `<span class="turn-flag">현재 턴</span>` : ""}
         <div class="opponent-name"><span>${p.name}</span>${badges}</div>
         <div class="opponent-count">${p.handSize}장</div>
         ${renderMiniBackFan(p.handSize)}
@@ -75,10 +70,22 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
 
   // Draw pile / discard pile sit on the table itself, between everyone's
   // seats and the viewer's own hand — a fixed landmark the draw animation
-  // flies cards out of (see #draw-pile in drawAnimation.ts).
+  // flies cards out of (see #draw-pile in drawAnimation.ts). Whose turn it
+  // is sits to the left of the piles (one fixed spot, always visible,
+  // instead of a badge on whichever opponent chip may be scrolled off
+  // screen); the win-order list sits to the right of the discard pile.
   const centerTable = document.createElement("div");
   centerTable.className = "center-table";
   centerTable.innerHTML = `
+    ${
+      !isFinished
+        ? `
+      <div class="turn-indicator">
+        <span class="turn-indicator-label">현재 턴</span>
+        <span class="turn-indicator-name">${currentPlayer?.id === view.viewerId ? "나" : currentPlayer?.name}</span>
+      </div>`
+        : ""
+    }
     <div class="pile draw-pile" id="draw-pile">
       <div class="pile-cards">
         <span class="pile-card-back"></span>
@@ -94,6 +101,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       }
       <span class="pile-count">${view.discardPileCount}</span>
     </div>
+    ${renderWinnerList(view, callbacks.winnerOrder)}
   `;
   container.appendChild(centerTable);
 
@@ -178,6 +186,18 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   container.querySelector("#ctrl-quit")!.addEventListener("click", callbacks.onQuit);
 }
 
+// "1등 · 이름" down to however many have finished, next to the discard pile.
+function renderWinnerList(view: PlayerFacingState, winnerOrder: string[] | undefined): string {
+  if (!winnerOrder || winnerOrder.length === 0) return "";
+  const rows = winnerOrder
+    .map((id, i) => {
+      const name = view.players.find((p) => p.id === id)?.name ?? id;
+      return `<li>${i + 1}등 · ${name}</li>`;
+    })
+    .join("");
+  return `<ul class="winner-list">${rows}</ul>`;
+}
+
 // Remaining hand size as that many card backs (fanned with overlap), right
 // below the "N장" count, rather than making the number the only cue.
 function renderMiniBackFan(count: number): string {
@@ -191,9 +211,12 @@ function renderMiniBackFan(count: number): string {
 // it's clear why it survived or flushed something (rules 11-19).
 function renderSeatCards(view: PlayerFacingState, playerId: string): string {
   const own = view.activeCards.filter((ac) => ac.playerId === playerId);
-  if (own.length === 0) return "";
   const groups = getActiveGroups(view.activeCards);
 
+  // Always the same reserved height, card or not — otherwise every seat
+  // (and the whole opponents row / table) resizes and re-levels itself
+  // depending on who currently has a card down, which reads as the table
+  // itself changing size rather than just a card appearing or leaving.
   const cardsHtml = own
     .map((ac) => {
       const group = groups.find((g) => g.value === ac.value)!;
@@ -207,5 +230,5 @@ function renderSeatCards(view: PlayerFacingState, playerId: string): string {
     })
     .join("");
 
-  return `<div class="seat-cards">${cardsHtml}</div>`;
+  return `<div class="seat-cards${own.length === 0 ? " empty" : ""}">${cardsHtml}</div>`;
 }
