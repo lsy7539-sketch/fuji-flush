@@ -1,5 +1,6 @@
 import { getActiveGroups } from "../engine/gameEngine";
 import type { PlayerFacingState } from "../engine/playerView";
+import { getHandSort, setHandSort, sortByValue } from "./handSort";
 
 export interface BoardCallbacks {
   message: string;
@@ -77,9 +78,11 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   if (viewer) {
     const isCurrent = viewer.id === currentPlayerId && !isFinished;
     const canPlay = isCurrent && !viewer.isWinner && !callbacks.paused;
+    const handSort = getHandSort();
+    const sortedCards = sortByValue(viewer.cards ?? [], handSort);
 
     const handHtml =
-      (viewer.cards ?? [])
+      sortedCards
         .map(
           (card) =>
             `<button class="hand-card" data-card-id="${card.id}" data-player-id="${viewer.id}" ${
@@ -95,7 +98,13 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       "my-hand" + (isCurrent ? " current" : "") + (viewer.isWinner ? " winner" : "");
     myHandEl.innerHTML = `
       ${isCurrent ? `<span class="turn-flag">현재 턴</span>` : ""}
-      <div class="my-hand-header"><span>내 손패</span>${badges}</div>
+      <div class="my-hand-header">
+        <span>내 손패</span>${badges}
+        <div class="toggle-group sort-toggle" role="group" aria-label="손패 정렬">
+          <button class="toggle-btn${handSort === "asc" ? " active" : ""}" data-sort-option="asc">낮은순</button>
+          <button class="toggle-btn${handSort === "desc" ? " active" : ""}" data-sort-option="desc">높은순</button>
+        </div>
+      </div>
       ${renderSeatCards(view, viewer.id, "내가 낸 카드")}
       <div class="hand">${handHtml}</div>
       ${
@@ -117,6 +126,12 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   container.querySelectorAll<HTMLButtonElement>(".pass-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       callbacks.onPlayCard(btn.dataset.playerId!, undefined);
+    });
+  });
+  container.querySelectorAll<HTMLButtonElement>(".toggle-btn[data-sort-option]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setHandSort(btn.dataset.sortOption as "asc" | "desc");
+      renderBoard(app, view, callbacks);
     });
   });
   container.querySelector("#ctrl-back")!.addEventListener("click", callbacks.onBack);

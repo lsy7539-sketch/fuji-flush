@@ -372,6 +372,7 @@ input:focus-visible {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
   margin-top: 0.5rem;
   margin-bottom: 0.7rem;
@@ -545,11 +546,18 @@ input:focus-visible {
 .my-hand-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 1.05rem;
   margin-bottom: 0.9rem;
+}
+
+.sort-toggle {
+  margin-left: auto;
+  font-family: var(--font-body);
+  font-weight: 400;
 }
 
 .badge {
@@ -580,6 +588,7 @@ input:focus-visible {
 .hand {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 0.5rem;
 }
 
