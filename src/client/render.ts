@@ -58,7 +58,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     opponentsEl.className = "opponents";
     for (const p of opponents) {
       const isCurrent = p.id === currentPlayerId && !isFinished;
-      const badges = [p.isWinner ? `<span class="badge badge-win">승리</span>` : ""].join("");
+      const badges = [winnerBadge(p.id, p.isWinner, callbacks.winnerOrder)].join("");
 
       const chip = document.createElement("div");
       chip.className = "opponent" + (isCurrent ? " current" : "") + (p.isWinner ? " winner" : "");
@@ -68,6 +68,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
         <div class="opponent-count">${p.handSize}장</div>
         ${renderMiniBackFan(p.handSize)}
         ${renderSeatCards(view, p.id)}
+        ${p.handSize === 1 ? `<span class="last-card-flag">1장 남음!</span>` : ""}
       `;
       opponentsEl.appendChild(chip);
     }
@@ -156,7 +157,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
         )
         .join("") || `<span class="empty-hand">손패 없음</span>`;
 
-    const badges = [viewer.isWinner ? `<span class="badge badge-win">승리</span>` : ""].join("");
+    const badges = [winnerBadge(viewer.id, viewer.isWinner, callbacks.winnerOrder)].join("");
 
     const myHandEl = document.createElement("div");
     myHandEl.className =
@@ -220,6 +221,20 @@ function shoutAlliance(): void {
   banner.innerHTML = `<span class="alliance-banner-text">🤝 연합!!! 🤝</span>`;
   document.body.appendChild(banner);
   setTimeout(() => banner.remove(), 1400);
+}
+
+// A finished player's seat/hand badge — "1등"/"2등"/etc rather than a bare
+// "승리", since by the time the whole game ends *everyone* has isWinner
+// true (checkWinners only flips gameStatus to FINISHED once every player
+// has emptied their hand — see gameEngine.ts), so labeling the very last
+// person to finish "승리" read as wrong. Falls back to the old "승리" text
+// only if winnerOrder isn't available (e.g. online multiplayer doesn't
+// track it yet) or hasn't caught up to this player.
+function winnerBadge(playerId: string, isWinner: boolean, winnerOrder: string[] | undefined): string {
+  if (!isWinner) return "";
+  const place = winnerOrder?.indexOf(playerId);
+  const label = place !== undefined && place !== -1 ? `${place + 1}등` : "승리";
+  return `<span class="badge badge-win">${label}</span>`;
 }
 
 // "1등 · 이름" down to however many have finished, next to the discard pile

@@ -9,6 +9,11 @@ import { getSpeed, setSpeed, type Speed } from "./speed";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
+// Lives outside renderLocalSetup so it survives that screen's own re-renders
+// (speed toggle, +/- stepper) — only reset to 4 when freshly entering the
+// screen from the main menu (see renderModeSelect's onLocal below).
+let localPlayerCount = 4;
+
 function boot(): void {
   document.body.classList.remove("pixel-menu-screen");
   if (location.hash === "#admin") {
@@ -40,6 +45,7 @@ function renderModeSelect(): void {
   renderMainMenu(app, {
     onLocal: () => {
       document.body.classList.remove("pixel-menu-screen");
+      localPlayerCount = 4;
       renderLocalSetup();
     },
     onNetwork: () => {
@@ -63,8 +69,12 @@ function renderLocalSetup(): void {
   const speedLabels: Record<Speed, string> = { slow: "느리게", normal: "보통", fast: "빠르게" };
   container.innerHTML = `
     <h1>Fuji Flush · 혼자하기</h1>
-    <label for="player-count">전체 인원 수 (나 + AI, 3~8명)</label>
-    <input type="number" id="player-count" min="3" max="8" value="4" />
+    <label>전체 인원 수 (나 + AI, 3~8명)</label>
+    <div class="stepper" role="group" aria-label="전체 인원 수">
+      <button type="button" id="player-count-minus" aria-label="인원 수 감소" ${localPlayerCount <= 3 ? "disabled" : ""}>−</button>
+      <span class="stepper-value">${localPlayerCount}</span>
+      <button type="button" id="player-count-plus" aria-label="인원 수 증가" ${localPlayerCount >= 8 ? "disabled" : ""}>+</button>
+    </div>
     <label>게임 진행 속도</label>
     <div class="toggle-group" role="group" aria-label="게임 진행 속도">
       ${(["slow", "normal", "fast"] as Speed[])
@@ -85,12 +95,18 @@ function renderLocalSetup(): void {
       renderLocalSetup();
     });
   });
+  container.querySelector("#player-count-minus")!.addEventListener("click", () => {
+    localPlayerCount = Math.max(3, localPlayerCount - 1);
+    renderLocalSetup();
+  });
+  container.querySelector("#player-count-plus")!.addEventListener("click", () => {
+    localPlayerCount = Math.min(8, localPlayerCount + 1);
+    renderLocalSetup();
+  });
   container.querySelector("#start-btn")!.addEventListener("click", () => {
-    const input = container.querySelector<HTMLInputElement>("#player-count")!;
-    const count = Math.min(8, Math.max(3, Number(input.value) || 4));
     // "뒤로가기" during the game re-opens this same setup screen; "✕" goes
     // all the way home to mode-select.
-    startLocalMode(app, count, renderLocalSetup, renderModeSelect);
+    startLocalMode(app, localPlayerCount, renderLocalSetup, renderModeSelect);
   });
   container.querySelector("#back-btn")!.addEventListener("click", renderModeSelect);
 }
