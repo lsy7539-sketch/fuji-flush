@@ -1,5 +1,7 @@
 import { addFriend, getFriends, removeFriend } from "./friends";
-import { getAccessCode, getNickname, setNickname } from "./loginGate";
+import { getAccessCode, getAllianceText, getNickname, setAllianceText, setNickname } from "./loginGate";
+
+const MAX_ALLIANCE_TEXT_LENGTH = 12;
 
 const NETWORK_ERROR_TEXT = "서버에 연결할 수 없습니다.";
 
@@ -13,6 +15,17 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
     <input type="text" id="nickname-input" value="${getNickname()}" maxlength="20" autocomplete="off" />
     <div id="profile-message"></div>
     <button id="save-btn">저장</button>
+    <label for="alliance-text-input">🤝 연합! 외칠 때 뜨는 문구 (비워두면 기본 "연합!!!")</label>
+    <input
+      type="text"
+      id="alliance-text-input"
+      value="${getAllianceText()}"
+      placeholder="연합!!!"
+      maxlength="${MAX_ALLIANCE_TEXT_LENGTH}"
+      autocomplete="off"
+    />
+    <div id="alliance-text-message"></div>
+    <button id="alliance-text-save-btn">저장</button>
     <label for="friend-name-input">같이 하고 싶은 친구들 (혼자하기 상대 이름으로 골라 쓸 수 있어요)</label>
     <div class="friend-add-row">
       <input type="text" id="friend-name-input" placeholder="친구 닉네임" maxlength="20" autocomplete="off" />
@@ -26,6 +39,8 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
 
   const input = container.querySelector<HTMLInputElement>("#nickname-input")!;
   const messageEl = container.querySelector<HTMLDivElement>("#profile-message")!;
+  const allianceTextInput = container.querySelector<HTMLInputElement>("#alliance-text-input")!;
+  const allianceTextMessageEl = container.querySelector<HTMLDivElement>("#alliance-text-message")!;
   const friendInput = container.querySelector<HTMLInputElement>("#friend-name-input")!;
   const friendMessageEl = container.querySelector<HTMLDivElement>("#friend-message")!;
   const friendListEl = container.querySelector<HTMLUListElement>(".friend-list")!;
@@ -54,6 +69,29 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
       }
     } catch {
       messageEl.innerHTML = `<div class="message">서버에 연결할 수 없습니다.</div>`;
+    }
+  }
+
+  async function saveAllianceText(): Promise<void> {
+    allianceTextMessageEl.innerHTML = "";
+    try {
+      const res = await fetch("/api/alliance-text/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: getAccessCode(), text: allianceTextInput.value }),
+      });
+      const data = await res.json();
+      if (!active) return;
+      if (data.ok) {
+        setAllianceText(data.allianceText);
+        allianceTextInput.value = data.allianceText;
+        allianceTextMessageEl.innerHTML = `<div class="message win">저장되었습니다.</div>`;
+      } else {
+        allianceTextMessageEl.innerHTML = `<div class="message">${data.message ?? "변경에 실패했습니다."}</div>`;
+      }
+    } catch {
+      if (!active) return;
+      allianceTextMessageEl.innerHTML = `<div class="message">${NETWORK_ERROR_TEXT}</div>`;
     }
   }
 
@@ -97,6 +135,10 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
   container.querySelector("#save-btn")!.addEventListener("click", save);
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") save();
+  });
+  container.querySelector("#alliance-text-save-btn")!.addEventListener("click", saveAllianceText);
+  allianceTextInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") saveAllianceText();
   });
   container.querySelector("#friend-add-btn")!.addEventListener("click", addFriendFromInput);
   friendInput.addEventListener("keydown", (e) => {

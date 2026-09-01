@@ -27,16 +27,23 @@ export interface AccessCode {
 
 const MAX_FRIENDS = 30;
 const MAX_FRIEND_NAME_LENGTH = 20;
+const MAX_ALLIANCE_TEXT_LENGTH = 12;
 
 // Kept off AccessCode itself (the admin listing/registration shape) since
 // nothing there needs it — friends is purely a self-service, per-account
 // list (see the functions below).
 const memoryFriends = new Map<string, string[]>();
 
+// The account holder's own wording for the 🤝 연합! shout (render.ts's
+// showAllianceBanner) — "" means "use the default 연합!!! text", same
+// off-AccessCode reasoning as memoryFriends above.
+const memoryAllianceText = new Map<string, string>();
+
 export interface AccessCheckResult {
   valid: boolean;
   isAdmin: boolean;
   nickname: string;
+  allianceText: string;
 }
 
 const memoryCodes = new Map<string, AccessCode>();
@@ -46,20 +53,26 @@ export async function checkAccessCode(code: string): Promise<AccessCheckResult> 
   if (!pool) {
     const entry = memoryCodes.get(normalized);
     return entry
-      ? { valid: true, isAdmin: entry.isAdmin, nickname: entry.nickname }
-      : { valid: false, isAdmin: false, nickname: "" };
+      ? {
+          valid: true,
+          isAdmin: entry.isAdmin,
+          nickname: entry.nickname,
+          allianceText: memoryAllianceText.get(normalized) ?? "",
+        }
+      : { valid: false, isAdmin: false, nickname: "", allianceText: "" };
   }
   const result = await pool.query(
-    "SELECT is_admin, nickname FROM access_codes WHERE code = $1",
+    "SELECT is_admin, nickname, alliance_text FROM access_codes WHERE code = $1",
     [normalized],
   );
   if (result.rows.length === 0) {
-    return { valid: false, isAdmin: false, nickname: "" };
+    return { valid: false, isAdmin: false, nickname: "", allianceText: "" };
   }
   return {
     valid: true,
     isAdmin: result.rows[0].is_admin === true,
     nickname: result.rows[0].nickname,
+    allianceText: result.rows[0].alliance_text ?? "",
   };
 }
 
@@ -201,6 +214,36 @@ export async function removeFriendForCode(rawCode: string, name: string): Promis
   const updated = current.filter((f) => f !== name);
   await saveFriendsForCode(code, updated);
   return updated;
+}
+
+// Optional, unlike updateNickname — an empty string is a valid value here
+// and just means "fall back to the default 연합!!! wording" (see
+// showAllianceBanner). Same self-service trust model as updateNickname.
+export async function getAllianceTextForCode(rawCode: string): Promise<string> {
+  const code = rawCode.trim().toUpperCase();
+  if (!pool) {
+    return memoryAllianceText.get(code) ?? "";
+  }
+  const result = await pool.query("SELECT alliance_text FROM access_codes WHERE code = $1", [code]);
+  return result.rows.length > 0 ? (result.rows[0].alliance_text ?? "") : "";
+}
+
+export async function updateAllianceTextForCode(rawCode: string, text: string): Promise<string> {
+  const code = rawCode.trim().toUpperCase();
+  const trimmed = text.trim().slice(0, MAX_ALLIANCE_TEXT_LENGTH);
+  if (!pool) {
+    if (!memoryCodes.has(code)) throw new Error("코드를 찾을 수 없습니다.");
+    memoryAllianceText.set(code, trimmed);
+    return trimmed;
+  }
+  const result = await pool.query("UPDATE access_codes SET alliance_text = $1 WHERE code = $2", [
+    trimmed,
+    code,
+  ]);
+  if ((result.rowCount ?? 0) === 0) {
+    throw new Error("코드를 찾을 수 없습니다.");
+  }
+  return trimmed;
 }
 
 export async function revokeAccessCode(code: string): Promise<boolean> {

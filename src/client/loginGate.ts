@@ -2,6 +2,7 @@ const SESSION_KEY = "fuji-flush-authed";
 const IS_ADMIN_CODE_KEY = "fuji-flush-is-admin-code";
 const NICKNAME_KEY = "fuji-flush-nickname";
 const CODE_KEY = "fuji-flush-access-code";
+const ALLIANCE_TEXT_KEY = "fuji-flush-alliance-text";
 
 export function isAuthed(): boolean {
   return sessionStorage.getItem(SESSION_KEY) === "1";
@@ -36,6 +37,17 @@ export function getAccessCode(): string {
   return sessionStorage.getItem(CODE_KEY) ?? "";
 }
 
+// This session's customized 🤝 연합! phrase (see profile.ts /
+// showAllianceBanner) — "" means "no customization, use the default
+// 연합!!! text".
+export function getAllianceText(): string {
+  return sessionStorage.getItem(ALLIANCE_TEXT_KEY) ?? "";
+}
+
+export function setAllianceText(text: string): void {
+  sessionStorage.setItem(ALLIANCE_TEXT_KEY, text);
+}
+
 export function renderLoginGate(app: HTMLElement, onSuccess: () => void): void {
   app.innerHTML = "";
   const container = document.createElement("div");
@@ -68,6 +80,7 @@ export function renderLoginGate(app: HTMLElement, onSuccess: () => void): void {
         sessionStorage.setItem(IS_ADMIN_CODE_KEY, data.isAdmin ? "1" : "0");
         sessionStorage.setItem(NICKNAME_KEY, data.nickname || "플레이어");
         sessionStorage.setItem(CODE_KEY, code);
+        sessionStorage.setItem(ALLIANCE_TEXT_KEY, data.allianceText || "");
         onSuccess();
       } else {
         errorEl.innerHTML = `<div class="message">${data.message ?? "코드가 올바르지 않습니다."}</div>`;

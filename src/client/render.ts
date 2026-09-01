@@ -28,6 +28,11 @@ export interface BoardCallbacks {
   onQuit: () => void;
   onBeginnerBack?: () => void;
   onBeginnerNext?: () => void;
+  /** Fired on 🤝 연합! click — the caller decides what "shouting" means:
+   *  localMode.ts shows the banner immediately, networkMode.ts instead
+   *  sends it to the server so every player in the room sees the same
+   *  banner at the same time (see showAllianceBanner below). */
+  onShoutAlliance?: () => void;
 }
 
 export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks: BoardCallbacks): void {
@@ -250,7 +255,9 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       renderBoard(app, view, callbacks);
     });
   });
-  container.querySelector("#shout-alliance-btn")?.addEventListener("click", shoutAlliance);
+  container.querySelector("#shout-alliance-btn")?.addEventListener("click", () => {
+    callbacks.onShoutAlliance?.();
+  });
   container.querySelector("#ctrl-back")!.addEventListener("click", callbacks.onBack);
   container.querySelector("#ctrl-pause")!.addEventListener("click", callbacks.onTogglePause);
   container.querySelector("#ctrl-quit")!.addEventListener("click", callbacks.onQuit);
@@ -267,7 +274,15 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
 // lands above or below it (whichever has more room) rather than dead
 // center — so the pile itself stays visible under the fanfare instead of
 // getting covered by it.
-function shoutAlliance(): void {
+//
+// `phrase` is the shouting player's own customized wording (profile.ts),
+// falling back to the classic "연합!!!" when they haven't set one — the 🤝
+// wrapper emoji stay fixed either way. Exported so both localMode.ts (shows
+// it immediately on click) and networkMode.ts (shows it only once the
+// server echoes the shout back, so every player in the room sees the same
+// banner at the same time) can trigger it.
+export function showAllianceBanner(phrase?: string): void {
+  const text = phrase?.trim() || "연합!!!";
   const pileRect = document.querySelector(".center-table")?.getBoundingClientRect();
   const originX = pileRect ? pileRect.left + pileRect.width / 2 : window.innerWidth / 2;
   const originY = pileRect ? pileRect.top + pileRect.height / 2 : window.innerHeight / 2;
@@ -282,9 +297,13 @@ function shoutAlliance(): void {
     <div class="alliance-ring" style="left:${originX}px; top:${originY}px;"></div>
     <div class="alliance-ring alliance-ring-delayed" style="left:${originX}px; top:${originY}px;"></div>
     <div class="alliance-banner-pos" style="top:${bannerTop}px;">
-      <span class="alliance-banner-text">🤝 연합!!! 🤝</span>
+      <span class="alliance-banner-text"></span>
     </div>
   `;
+  // textContent, not innerHTML — text is a customizable phrase that in
+  // multiplayer comes from another player's profile setting over the
+  // network, so it needs to render as plain text no matter what's in it.
+  overlay.querySelector(".alliance-banner-text")!.textContent = `🤝 ${text} 🤝`;
 
   const particleEmojis = ["🤝", "✨", "💥", "⚡"];
   const particleCount = 16;

@@ -117,6 +117,8 @@ function handleMessage(socket: WebSocket, message: ClientMessage): void {
       return startGame(socket);
     case "playCard":
       return handlePlayCard(socket, message.cardId);
+    case "shoutAlliance":
+      return shoutAlliance(socket, message.text);
   }
 }
 
@@ -200,6 +202,24 @@ function handlePlayCard(socket: WebSocket, cardId: string | undefined): void {
     recordMatch(room).catch((err) => console.error("전적 기록 실패:", err));
   }
   broadcastState(room, "stateUpdate");
+}
+
+// Purely for fun (see render.ts's showAllianceBanner) — relayed to every
+// player in the room instead of just showing locally, so a 🤝 연합! click
+// is a shared moment everyone in the game sees at the same time rather
+// than something only the clicker notices on their own screen. The text
+// is the shouter's own customized phrase (profile.ts) — trusted the same
+// way a player's display name already is, but still capped here since
+// it's about to be broadcast to everyone else's browser regardless of what
+// the client claims it validated.
+const MAX_ALLIANCE_TEXT_LENGTH = 12;
+
+function shoutAlliance(socket: WebSocket, text: string | undefined): void {
+  const found = findRoomBySocket(socket);
+  if (!found) return;
+  const trimmed = typeof text === "string" ? text.trim().slice(0, MAX_ALLIANCE_TEXT_LENGTH) : undefined;
+  const message: ServerMessage = { type: "allianceShouted", text: trimmed || undefined };
+  for (const p of found.room.players) send(p.socket, message);
 }
 
 // Stats/rankings are a future feature (CLAUDE.md TODO) — this just makes

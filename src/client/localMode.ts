@@ -5,7 +5,8 @@ import { toPlayerView } from "../engine/playerView";
 import { computeDiscardEvents, computeDrawEvents, flyCard } from "./drawAnimation";
 import { getSpeed, getTiming, type Timing } from "./speed";
 import type { GameState } from "../engine/types";
-import { renderBoard } from "./render";
+import { renderBoard, showAllianceBanner } from "./render";
+import { getAllianceText } from "./loginGate";
 
 const HUMAN_ID = "human";
 
@@ -176,6 +177,7 @@ export function startLocalMode(
       onTogglePause: togglePause,
       onBeginnerBack: beginnerBack,
       onBeginnerNext: beginnerNext,
+      onShoutAlliance: () => showAllianceBanner(getAllianceText()),
       onQuit: async () => {
         if (await showConfirm("정말 게임을 나가시겠어요? 진행 상황이 사라집니다.")) {
           stopped = true;

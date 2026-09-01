@@ -4,7 +4,8 @@ export type ClientMessage =
   | { type: "createRoom"; playerName: string; roomName?: string; roomCode?: string }
   | { type: "joinRoom"; roomCode: string; playerName: string }
   | { type: "startGame" }
-  | { type: "playCard"; cardId?: string };
+  | { type: "playCard"; cardId?: string }
+  | { type: "shoutAlliance"; text?: string };
 
 export interface LobbyPlayer {
   id: string;
@@ -18,4 +19,5 @@ export type ServerMessage =
   | { type: "gameStarted"; view: PlayerFacingState }
   | { type: "stateUpdate"; view: PlayerFacingState }
   | { type: "actionRejected"; reason: string }
-  | { type: "errorMessage"; message: string };
+  | { type: "errorMessage"; message: string }
+  | { type: "allianceShouted"; text?: string };

@@ -1,8 +1,8 @@
 import type { PlayerFacingState } from "../engine/playerView";
 import { showConfirm } from "./confirmDialog";
-import { getNickname } from "./loginGate";
+import { getAllianceText, getNickname } from "./loginGate";
 import type { ClientMessage, LobbyPlayer, ServerMessage } from "../shared/protocol";
-import { renderBoard } from "./render";
+import { renderBoard, showAllianceBanner } from "./render";
 
 type Screen = "chooser" | "lobby" | "game";
 
@@ -104,6 +104,12 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       case "errorMessage":
         errorMessage = message.message;
         break;
+      case "allianceShouted":
+        // Relayed from another player's (or our own echoed-back) 🤝 연합!
+        // click — see rooms.ts's shoutAlliance. Doesn't change any state
+        // that render() would reflect, so skip the re-render below.
+        showAllianceBanner(message.text);
+        return;
     }
     render();
   }
@@ -238,6 +244,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       // online-multiplayer flow; quit goes all the way to mode-select.
       onBack: confirmBack,
       onQuit: confirmQuit,
+      // Doesn't show the banner itself — waits for the server to echo it
+      // back (see handleServerMessage's "allianceShouted" case) so every
+      // player in the room, sender included, sees it at the same moment.
+      onShoutAlliance: () => send({ type: "shoutAlliance", text: getAllianceText() }),
       // Pausing can only dim/disable this client's own screen — the game
       // keeps running for everyone else since it's a shared session.
       onTogglePause: () => {

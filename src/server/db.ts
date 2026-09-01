@@ -34,6 +34,10 @@ export async function initDb(): Promise<void> {
   // itself rather than localStorage, so it's the same on every device they
   // log in from instead of per-browser.
   await pool.query("ALTER TABLE access_codes ADD COLUMN IF NOT EXISTS friends TEXT NOT NULL DEFAULT '[]'");
+  // The account holder's own customized wording for the 🤝 연합! shout
+  // button (render.ts's showAllianceBanner) — empty means "use the default
+  // 연합!!! text", so this is optional, unlike nickname.
+  await pool.query("ALTER TABLE access_codes ADD COLUMN IF NOT EXISTS alliance_text TEXT NOT NULL DEFAULT ''");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS matches (
       id SERIAL PRIMARY KEY,

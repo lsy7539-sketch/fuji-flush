@@ -14,6 +14,8 @@ import {
   getFriendsForCode,
   addFriendForCode,
   removeFriendForCode,
+  getAllianceTextForCode,
+  updateAllianceTextForCode,
 } from "./accessCodes";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -76,9 +78,11 @@ app.use(
 app.post("/api/login", async (req, res) => {
   const code = req.body?.code;
   const result =
-    typeof code === "string" ? await checkAccessCode(code) : { valid: false, isAdmin: false, nickname: "" };
+    typeof code === "string"
+      ? await checkAccessCode(code)
+      : { valid: false, isAdmin: false, nickname: "", allianceText: "" };
   if (result.valid) {
-    res.json({ ok: true, isAdmin: result.isAdmin, nickname: result.nickname });
+    res.json({ ok: true, isAdmin: result.isAdmin, nickname: result.nickname, allianceText: result.allianceText });
   } else {
     res.status(401).json({ ok: false, message: "코드가 올바르지 않습니다." });
   }
@@ -96,6 +100,34 @@ app.post("/api/nickname", async (req, res) => {
   try {
     const updated = await updateNickname(code, nickname);
     res.json({ ok: true, nickname: updated.nickname });
+  } catch (err) {
+    res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "변경에 실패했습니다." });
+  }
+});
+
+// Self-service 연합 phrase (see profile.ts / showAllianceBanner) — same
+// trust model as /api/nickname above. GET-shaped as a POST (matches every
+// other self-service route here) since the caller's own code has to go in
+// the body, not a public URL param.
+app.post("/api/alliance-text", async (req, res) => {
+  const code = req.body?.code;
+  if (typeof code !== "string" || !code.trim()) {
+    res.status(400).json({ ok: false, message: "잘못된 요청입니다." });
+    return;
+  }
+  res.json({ ok: true, allianceText: await getAllianceTextForCode(code) });
+});
+
+app.post("/api/alliance-text/update", async (req, res) => {
+  const code = req.body?.code;
+  const text = req.body?.text;
+  if (typeof code !== "string" || !code.trim() || typeof text !== "string") {
+    res.status(400).json({ ok: false, message: "잘못된 요청입니다." });
+    return;
+  }
+  try {
+    const allianceText = await updateAllianceTextForCode(code, text);
+    res.json({ ok: true, allianceText });
   } catch (err) {
     res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "변경에 실패했습니다." });
   }
