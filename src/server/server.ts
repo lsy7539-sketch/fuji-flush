@@ -10,6 +10,7 @@ import {
   listAccessCodes,
   registerAccessCode,
   revokeAccessCode,
+  updateNickname,
 } from "./accessCodes";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -61,6 +62,23 @@ app.post("/api/login", async (req, res) => {
     res.json({ ok: true, isAdmin: result.isAdmin, nickname: result.nickname });
   } else {
     res.status(401).json({ ok: false, message: "코드가 올바르지 않습니다." });
+  }
+});
+
+// Self-service rename (see profile.ts) — no admin auth, the caller's own
+// access code (already proven at login) is what authorizes this.
+app.post("/api/nickname", async (req, res) => {
+  const code = req.body?.code;
+  const nickname = req.body?.nickname;
+  if (typeof code !== "string" || !code.trim() || typeof nickname !== "string") {
+    res.status(400).json({ ok: false, message: "잘못된 요청입니다." });
+    return;
+  }
+  try {
+    const updated = await updateNickname(code, nickname);
+    res.json({ ok: true, nickname: updated.nickname });
+  } catch (err) {
+    res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "변경에 실패했습니다." });
   }
 });
 

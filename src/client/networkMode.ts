@@ -120,7 +120,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     container.className = "setup";
     const prefilledCode = new URLSearchParams(location.search).get("room") ?? "";
     container.innerHTML = `
-      <h1>Fuji Flush · 온라인 멀티플레이</h1>
+      <h1>Fuji Flush · 같이하기</h1>
       ${errorMessage ? `<div class="message">${errorMessage}</div>` : ""}
       <p>닉네임: <b>${getNickname()}</b></p>
       <label for="room-name">방 이름 (선택)</label>

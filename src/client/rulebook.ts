@@ -197,7 +197,7 @@ export function renderRulebook(app: HTMLElement, onBack: () => void): void {
   const container = document.createElement("div");
   container.className = "setup rulebook";
   container.innerHTML = `
-    <h1>룰북</h1>
+    <h1>RULE BOOK</h1>
     <p class="rulebook-intro">Fuji Flush의 핵심 규칙을 카드 예시와 함께 정리했어요.</p>
     ${SECTIONS.map(
       (s) => `

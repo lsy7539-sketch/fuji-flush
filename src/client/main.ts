@@ -4,6 +4,7 @@ import { startLocalMode } from "./localMode";
 import { isAdminCodeSession, isAuthed, renderLoginGate } from "./loginGate";
 import { renderMainMenu } from "./mainMenu";
 import { startNetworkMode } from "./networkMode";
+import { renderProfile } from "./profile";
 import { renderRulebook } from "./rulebook";
 import { getSpeed, setSpeed, type Speed } from "./speed";
 
@@ -55,6 +56,10 @@ function renderModeSelect(): void {
     onRulebook: () => {
       document.body.classList.remove("pixel-menu-screen");
       renderRulebook(app, renderModeSelect);
+    },
+    onProfile: () => {
+      document.body.classList.remove("pixel-menu-screen");
+      renderProfile(app, renderModeSelect);
     },
     showAdminLink: isAdminCodeSession(),
   });

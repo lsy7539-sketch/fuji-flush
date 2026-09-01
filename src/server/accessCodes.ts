@@ -101,6 +101,43 @@ export async function registerAccessCode(
   return { code, createdAt, isAdmin, nickname: trimmedNickname };
 }
 
+// Lets a logged-in player rename themselves (see profile.ts / POST
+// /api/nickname) — deliberately self-service, unlike register/revoke above,
+// since a nickname is a cosmetic choice the account holder should be able to
+// change without going through an admin. The access code itself is this
+// simple app's whole identity proof (see the file header), so knowing it is
+// treated as sufficient authorization to rename that account — the same
+// trust model login already relies on.
+export async function updateNickname(rawCode: string, nickname: string): Promise<AccessCode> {
+  const code = rawCode.trim().toUpperCase();
+  const trimmedNickname = nickname.trim();
+  if (!trimmedNickname) {
+    throw new Error("닉네임을 입력해주세요.");
+  }
+  if (trimmedNickname.length > 20) {
+    throw new Error("닉네임은 20자 이하로 입력해주세요.");
+  }
+  if (!pool) {
+    const entry = memoryCodes.get(code);
+    if (!entry) throw new Error("코드를 찾을 수 없습니다.");
+    entry.nickname = trimmedNickname;
+    return entry;
+  }
+  const result = await pool.query(
+    "UPDATE access_codes SET nickname = $1 WHERE code = $2 RETURNING created_at, is_admin",
+    [trimmedNickname, code],
+  );
+  if (result.rows.length === 0) {
+    throw new Error("코드를 찾을 수 없습니다.");
+  }
+  return {
+    code,
+    createdAt: Number(result.rows[0].created_at),
+    isAdmin: result.rows[0].is_admin === true,
+    nickname: trimmedNickname,
+  };
+}
+
 export async function revokeAccessCode(code: string): Promise<boolean> {
   const normalized = code.trim().toUpperCase();
   if (!pool) {
