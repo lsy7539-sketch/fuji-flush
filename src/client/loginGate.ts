@@ -1,3 +1,5 @@
+import { disableScreenWakeLock } from "./wakeLock";
+
 const SESSION_KEY = "fuji-flush-authed";
 const IS_ADMIN_CODE_KEY = "fuji-flush-is-admin-code";
 const NICKNAME_KEY = "fuji-flush-nickname";
@@ -49,6 +51,7 @@ export function setAllianceText(text: string): void {
 }
 
 export function renderLoginGate(app: HTMLElement, onSuccess: () => void): void {
+  disableScreenWakeLock();
   app.innerHTML = "";
   const container = document.createElement("div");
   container.className = "setup";

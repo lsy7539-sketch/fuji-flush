@@ -2,6 +2,7 @@ import { getActiveGroups } from "../engine/gameEngine";
 import type { PlayerFacingState } from "../engine/playerView";
 import type { Card } from "../engine/types";
 import { getHandSort, setHandSort, sortByValue } from "./handSort";
+import { enableScreenWakeLock } from "./wakeLock";
 
 export interface BoardCallbacks {
   message: string;
@@ -36,6 +37,11 @@ export interface BoardCallbacks {
 }
 
 export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks: BoardCallbacks): void {
+  // Idempotent — safe to call on every render (every move), only actually
+  // requests a lock the first time. Every other screen calls
+  // disableScreenWakeLock() on its own way in, so the screen only stays
+  // awake while an actual game is on it.
+  enableScreenWakeLock();
   app.innerHTML = "";
   const container = document.createElement("div");
   container.className = "board" + (callbacks.paused ? " paused" : "");

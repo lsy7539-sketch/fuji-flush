@@ -1,3 +1,5 @@
+import { disableScreenWakeLock } from "./wakeLock";
+
 interface ExampleCard {
   value: number;
   owner: string;
@@ -193,6 +195,7 @@ const TURNS: Turn[] = [
 ];
 
 export function renderRulebook(app: HTMLElement, onBack: () => void): void {
+  disableScreenWakeLock();
   app.innerHTML = "";
   const container = document.createElement("div");
   container.className = "setup rulebook";

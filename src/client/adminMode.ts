@@ -1,3 +1,5 @@
+import { disableScreenWakeLock } from "./wakeLock";
+
 interface AccessCodeRow {
   code: string;
   createdAt: number;
@@ -144,6 +146,7 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
   }
 
   function render(): void {
+    disableScreenWakeLock();
     if (!authed) {
       renderLoginForm();
     } else {

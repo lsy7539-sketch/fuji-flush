@@ -2,6 +2,7 @@
 // Pure SVG/CSS, no external images or fonts. Design frame: 390x780.
 
 import { refreshIconSvg } from "./icons";
+import { disableScreenWakeLock } from "./wakeLock";
 
 type MenuAction = "local" | "network" | "rulebook";
 
@@ -16,6 +17,7 @@ interface MainMenuOptions {
 }
 
 export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
+  disableScreenWakeLock();
   app.innerHTML = "";
 
   const wrap = document.createElement("div");

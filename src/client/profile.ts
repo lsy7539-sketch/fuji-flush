@@ -1,11 +1,13 @@
 import { addFriend, getFriends, removeFriend } from "./friends";
 import { getAccessCode, getAllianceText, getNickname, setAllianceText, setNickname } from "./loginGate";
+import { disableScreenWakeLock } from "./wakeLock";
 
 const MAX_ALLIANCE_TEXT_LENGTH = 12;
 
 const NETWORK_ERROR_TEXT = "서버에 연결할 수 없습니다.";
 
 export function renderProfile(app: HTMLElement, onBack: () => void): void {
+  disableScreenWakeLock();
   app.innerHTML = "";
   const container = document.createElement("div");
   container.className = "setup";

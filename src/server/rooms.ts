@@ -1,18 +1,30 @@
+import { randomUUID } from "node:crypto";
 import type { WebSocket } from "ws";
 import { GameError, createGame, playCard } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import type { GameState } from "../engine/types";
-import type { ClientMessage, ServerMessage } from "../shared/protocol";
+import type { ClientMessage, RoomStatus, ServerMessage } from "../shared/protocol";
 import { pool } from "./db";
 import { generateRoomCode } from "./roomCode";
 
 const MIN_PLAYERS = 3;
 const MAX_PLAYERS = 8;
 
+// How long a dropped connection gets to reconnect (same seat, same hand)
+// before the game is ended for everyone else — long enough to cover a
+// phone screen locking and coming back, short enough that the rest of the
+// room isn't left stuck on a dead player's turn indefinitely.
+const RECONNECT_GRACE_MS = 60_000;
+
 interface RoomPlayer {
   id: string;
   name: string;
-  socket: WebSocket;
+  socket: WebSocket | null;
+  connected: boolean;
+  // Proves "I'm the same player who was in this seat" across a fresh
+  // WebSocket after a drop — see the "reconnect" client message.
+  reconnectToken: string;
+  disconnectTimer: ReturnType<typeof setTimeout> | null;
 }
 
 interface Room {
@@ -21,7 +33,7 @@ interface Room {
   hostPlayerId: string;
   players: RoomPlayer[];
   state: GameState | null;
-  status: "LOBBY" | "IN_PROGRESS" | "FINISHED";
+  status: RoomStatus;
   startedAt: number | null;
 }
 
@@ -78,8 +90,8 @@ export function listOpenRooms(): OpenRoom[] {
     }));
 }
 
-function send(socket: WebSocket, message: ServerMessage): void {
-  if (socket.readyState === socket.OPEN) {
+function send(socket: WebSocket | null, message: ServerMessage): void {
+  if (socket && socket.readyState === socket.OPEN) {
     socket.send(JSON.stringify(message));
   }
 }
@@ -112,8 +124,34 @@ function findRoomBySocket(socket: WebSocket): { room: Room; player: RoomPlayer }
   return undefined;
 }
 
+function findRoomAndPlayerByToken(
+  roomCode: string,
+  token: string,
+): { room: Room; player: RoomPlayer } | undefined {
+  const room = rooms.get(roomCode.toUpperCase());
+  if (!room) return undefined;
+  const player = room.players.find((p) => p.reconnectToken === token);
+  return player ? { room, player } : undefined;
+}
+
 function makePlayerId(): string {
   return `player-${nextPlayerNumber++}`;
+}
+
+// The seat is unrecoverable — either the grace period ran out on a dropped
+// connection, or the player left on purpose (see "leaveGame"). The game
+// can't continue without that seat, so it ends here instead of leaving
+// everyone else stuck waiting on a turn that will never come.
+function endGameDueToDeparture(room: Room, leavingPlayer: RoomPlayer): void {
+  if (!rooms.has(room.code)) return; // already torn down (e.g. timer + explicit leave raced)
+  for (const p of room.players) {
+    if (p.disconnectTimer) clearTimeout(p.disconnectTimer);
+    if (p.id !== leavingPlayer.id) {
+      send(p.socket, { type: "playerLeft", playerName: leavingPlayer.name });
+    }
+  }
+  room.status = "FINISHED";
+  rooms.delete(room.code);
 }
 
 export function handleConnection(socket: WebSocket): void {
@@ -139,6 +177,20 @@ export function handleConnection(socket: WebSocket): void {
     const found = findRoomBySocket(socket);
     if (!found) return;
     const { room, player } = found;
+
+    if (room.status === "IN_PROGRESS") {
+      // Give them a window to reconnect into the same seat instead of
+      // immediately ending the game — see RECONNECT_GRACE_MS.
+      player.connected = false;
+      player.socket = null;
+      player.disconnectTimer = setTimeout(() => {
+        endGameDueToDeparture(room, player);
+      }, RECONNECT_GRACE_MS);
+      return;
+    }
+
+    // LOBBY (or a game that already legitimately FINISHED) — no seat worth
+    // preserving, same immediate-removal behavior as before reconnect existed.
     room.players = room.players.filter((p) => p.id !== player.id);
     if (room.players.length === 0) {
       rooms.delete(room.code);
@@ -150,17 +202,19 @@ export function handleConnection(socket: WebSocket): void {
     if (room.status === "LOBBY") {
       broadcastLobby(room);
     }
-    // A player dropping mid-game leaves their seat stuck — no reconnection support
-    // in this MVP (documented stretch goal in CLAUDE.md).
   });
 }
 
 function handleMessage(socket: WebSocket, message: ClientMessage): void {
   switch (message.type) {
     case "createRoom":
-      return createRoom(socket, message.playerName, message.roomName, message.roomCode);
+      return createRoom(socket, message.playerName, message.roomName);
     case "joinRoom":
       return joinRoom(socket, message.roomCode, message.playerName);
+    case "reconnect":
+      return reconnect(socket, message.roomCode, message.token);
+    case "leaveGame":
+      return leaveGame(socket);
     case "startGame":
       return startGame(socket);
     case "playCard":
@@ -170,32 +224,23 @@ function handleMessage(socket: WebSocket, message: ClientMessage): void {
   }
 }
 
-function createRoom(
-  socket: WebSocket,
-  playerName: string,
-  roomName: string | undefined,
-  customCode: string | undefined,
-): void {
-  let code: string;
-  if (customCode && customCode.trim()) {
-    code = customCode.trim().toUpperCase();
-    if (rooms.has(code)) throw new Error("이미 사용 중인 방 코드입니다.");
-  } else {
-    code = generateRoomCode((c) => rooms.has(c));
-  }
-
+function createRoom(socket: WebSocket, playerName: string, roomName: string | undefined): void {
+  const code = generateRoomCode((c) => rooms.has(c));
   const playerId = makePlayerId();
+  const reconnectToken = randomUUID();
   const room: Room = {
     code,
     name: roomName?.trim() || `${playerName || "Player"}의 방`,
     hostPlayerId: playerId,
-    players: [{ id: playerId, name: playerName || "Player", socket }],
+    players: [
+      { id: playerId, name: playerName || "Player", socket, connected: true, reconnectToken, disconnectTimer: null },
+    ],
     state: null,
     status: "LOBBY",
     startedAt: null,
   };
   rooms.set(code, room);
-  send(socket, { type: "roomCreated", roomCode: code, roomName: room.name, youAre: playerId });
+  send(socket, { type: "roomCreated", roomCode: code, roomName: room.name, youAre: playerId, reconnectToken });
   broadcastLobby(room);
 }
 
@@ -206,9 +251,60 @@ function joinRoom(socket: WebSocket, roomCode: string, playerName: string): void
   if (room.players.length >= MAX_PLAYERS) throw new Error("방이 가득 찼습니다.");
 
   const playerId = makePlayerId();
-  room.players.push({ id: playerId, name: playerName || "Player", socket });
-  send(socket, { type: "roomJoined", roomCode: room.code, roomName: room.name, youAre: playerId });
+  const reconnectToken = randomUUID();
+  room.players.push({
+    id: playerId,
+    name: playerName || "Player",
+    socket,
+    connected: true,
+    reconnectToken,
+    disconnectTimer: null,
+  });
+  send(socket, { type: "roomJoined", roomCode: room.code, roomName: room.name, youAre: playerId, reconnectToken });
   broadcastLobby(room);
+}
+
+function reconnect(socket: WebSocket, roomCode: string, token: string): void {
+  const found = findRoomAndPlayerByToken(roomCode, token);
+  if (!found) {
+    send(socket, {
+      type: "errorMessage",
+      message: "재접속에 실패했어요 — 방을 다시 찾아 참가해주세요.",
+    });
+    return;
+  }
+  const { room, player } = found;
+  if (player.disconnectTimer) {
+    clearTimeout(player.disconnectTimer);
+    player.disconnectTimer = null;
+  }
+  player.socket = socket;
+  player.connected = true;
+
+  send(socket, {
+    type: "reconnected",
+    roomCode: room.code,
+    roomName: room.name,
+    youAre: player.id,
+    hostId: room.hostPlayerId,
+    status: room.status,
+    players: room.players.map((p) => ({ id: p.id, name: p.name })),
+  });
+  if (room.state) {
+    send(socket, { type: "stateUpdate", view: toPlayerView(room.state, player.id) });
+  }
+}
+
+// The explicit "I'm leaving on purpose" signal (← / ✕ during an active
+// game) — ends things immediately instead of waiting out the reconnect
+// grace period for what isn't actually a dropped connection.
+function leaveGame(socket: WebSocket): void {
+  const found = findRoomBySocket(socket);
+  if (!found) return;
+  const { room, player } = found;
+  if (room.status === "IN_PROGRESS") {
+    endGameDueToDeparture(room, player);
+  }
 }
 
 function startGame(socket: WebSocket): void {

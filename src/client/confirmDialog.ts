@@ -33,3 +33,32 @@ export function showConfirm(message: string): Promise<boolean> {
     });
   });
 }
+
+// Same page-drawn overlay, single "확인" button — for telling the player
+// something happened (e.g. another player's connection ending the game)
+// rather than asking them to decide something.
+export function showAlert(message: string): Promise<void> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "confirm-overlay";
+    overlay.innerHTML = `
+      <div class="confirm-dialog">
+        <p class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button type="button" class="confirm-ok">확인</button>
+        </div>
+      </div>
+    `;
+    overlay.querySelector(".confirm-message")!.textContent = message;
+    document.body.appendChild(overlay);
+
+    const cleanup = (): void => {
+      overlay.remove();
+      resolve();
+    };
+    overlay.querySelector(".confirm-ok")!.addEventListener("click", cleanup);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) cleanup();
+    });
+  });
+}

@@ -1,17 +1,52 @@
 import type { PlayerFacingState } from "../engine/playerView";
-import { showConfirm } from "./confirmDialog";
+import { showAlert, showConfirm } from "./confirmDialog";
 import { getAllianceText, getNickname } from "./loginGate";
 import type { ClientMessage, LobbyPlayer, ServerMessage } from "../shared/protocol";
 import { renderBoard, showAllianceBanner } from "./render";
 import { refreshIconSvg } from "./icons";
+import { disableScreenWakeLock } from "./wakeLock";
 
-type Screen = "chooser" | "lobby" | "game";
+type Screen = "chooser" | "lobby" | "game" | "connecting";
 
 interface OpenRoom {
   code: string;
   name: string;
   playerCount: number;
   maxPlayers: number;
+}
+
+// Persisted across a dropped connection (and even a full page reload within
+// the same tab, if the browser discards a backgrounded page) so a fresh
+// WebSocket can prove "I'm the same player who was already in this room" —
+// see rooms.ts's "reconnect" handling. sessionStorage, not localStorage,
+// matching every other per-tab value this app keeps (access code, nickname,
+// alliance text) — reconnecting into a room from an unrelated tab/device
+// isn't a scenario this needs to support.
+const ROOM_SESSION_KEY = "fuji-flush-room-session";
+const RECONNECT_RETRY_MS = 3000;
+
+interface SavedRoomSession {
+  roomCode: string;
+  token: string;
+}
+
+function saveRoomSession(code: string, token: string): void {
+  sessionStorage.setItem(ROOM_SESSION_KEY, JSON.stringify({ roomCode: code, token }));
+}
+
+function loadRoomSession(): SavedRoomSession | null {
+  try {
+    const raw = sessionStorage.getItem(ROOM_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.roomCode === "string" && typeof parsed?.token === "string" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearRoomSession(): void {
+  sessionStorage.removeItem(ROOM_SESSION_KEY);
 }
 
 export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
@@ -24,8 +59,16 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let lastView: PlayerFacingState | null = null;
   let errorMessage = "";
   let screen: Screen = "chooser";
+  let connectingMessage = "";
   let paused = false;
   let openRooms: OpenRoom[] = [];
+  // Set right before every deliberate socket.close() (resetToChooser,
+  // confirmQuit) — the WS "close" listener uses this to tell "I chose to
+  // leave" apart from an actual dropped connection, which is the only case
+  // that should trigger an auto-reconnect attempt.
+  let deliberateClose = false;
+  let reconnecting = false;
+  let reconnectIntervalId: ReturnType<typeof setInterval> | null = null;
   // A ?room= invite link used to just prefill the code input — now that
   // there's no manual code entry, it instead auto-joins once, right away.
   // The flag stops a rejected/failed attempt from retrying forever every
@@ -46,12 +89,63 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       }
     } catch {
       // Leaves whatever list was already showing — the chooser's own
-      // "새로고침" button is the retry path, no need to surface an error
-      // for what's a background convenience fetch.
+      // refresh button is the retry path, no need to surface an error for
+      // what's a background convenience fetch.
     }
   }
 
+  function stopReconnectLoop(): void {
+    if (reconnectIntervalId !== null) {
+      clearInterval(reconnectIntervalId);
+      reconnectIntervalId = null;
+    }
+    reconnecting = false;
+  }
+
+  function tryReconnectOnce(): void {
+    const saved = loadRoomSession();
+    if (!saved) {
+      stopReconnectLoop();
+      return;
+    }
+    // An attempt is already connecting or connected — let it resolve
+    // instead of piling on another WebSocket.
+    if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
+      return;
+    }
+    ensureSocket(() => send({ type: "reconnect", roomCode: saved.roomCode, token: saved.token }));
+  }
+
+  function startReconnectLoop(): void {
+    if (reconnecting) return;
+    reconnecting = true;
+    screen = "connecting";
+    connectingMessage = "연결이 끊어졌어요. 다시 연결하는 중...";
+    render();
+    tryReconnectOnce();
+    reconnectIntervalId = setInterval(tryReconnectOnce, RECONNECT_RETRY_MS);
+  }
+
+  // Reconnect attempts definitively failed (room's gone, grace period
+  // expired) — nothing left to retry, so fall back to a normal chooser.
+  function giveUpReconnecting(message: string): void {
+    stopReconnectLoop();
+    clearRoomSession();
+    roomCode = "";
+    roomName = "";
+    hostId = "";
+    lobbyPlayers = [];
+    lastView = null;
+    errorMessage = message;
+    screen = "chooser";
+    render();
+    refreshOpenRooms();
+  }
+
   function resetToChooser(): void {
+    deliberateClose = true;
+    stopReconnectLoop();
+    clearRoomSession();
     socket?.close();
     socket = null;
     viewerId = "";
@@ -70,6 +164,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   // "뒤로가기": leave this room but stay in online-multiplayer flow (create/join again).
   async function confirmBack(): Promise<void> {
     if (await showConfirm("정말 방을 나가시겠어요? 다른 플레이어들과의 연결이 끊어집니다.")) {
+      if (screen === "game") send({ type: "leaveGame" });
       resetToChooser();
     }
   }
@@ -77,6 +172,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   // "✕": leave all the way back to the single/multi mode-select screen.
   async function confirmQuit(): Promise<void> {
     if (await showConfirm("정말 게임을 나가시겠어요? 다른 플레이어들과의 연결이 끊어집니다.")) {
+      if (screen === "game") send({ type: "leaveGame" });
+      deliberateClose = true;
+      stopReconnectLoop();
+      clearRoomSession();
       socket?.close();
       onExit();
     }
@@ -91,6 +190,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       onOpen();
       return;
     }
+    deliberateClose = false;
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
     ws.addEventListener("open", onOpen, { once: true });
@@ -98,8 +198,12 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       handleServerMessage(JSON.parse(event.data as string));
     });
     ws.addEventListener("close", () => {
-      errorMessage = "서버와의 연결이 끊어졌습니다.";
-      render();
+      if (deliberateClose) return;
+      // Only a live game (or its waiting room) is worth automatically
+      // reconnecting into — the chooser/room-browser has nothing to resume.
+      if (screen === "game" || screen === "lobby" || screen === "connecting") {
+        startReconnectLoop();
+      }
     });
     socket = ws;
   }
@@ -111,13 +215,28 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
         roomName = message.roomName;
         viewerId = message.youAre;
         hostId = message.youAre;
+        saveRoomSession(message.roomCode, message.reconnectToken);
         screen = "lobby";
         break;
       case "roomJoined":
         roomCode = message.roomCode;
         roomName = message.roomName;
         viewerId = message.youAre;
+        saveRoomSession(message.roomCode, message.reconnectToken);
         screen = "lobby";
+        break;
+      case "reconnected":
+        stopReconnectLoop();
+        roomCode = message.roomCode;
+        roomName = message.roomName;
+        viewerId = message.youAre;
+        hostId = message.hostId;
+        lobbyPlayers = message.players;
+        errorMessage = "";
+        // IN_PROGRESS is immediately followed by a stateUpdate (rooms.ts's
+        // reconnect handler sends both) which will flip this to "game" —
+        // LOBBY has nothing else coming, so land there directly.
+        screen = message.status === "LOBBY" ? "lobby" : "game";
         break;
       case "lobbyUpdate":
         roomCode = message.roomCode;
@@ -136,6 +255,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
         errorMessage = message.reason;
         break;
       case "errorMessage":
+        if (reconnecting || screen === "connecting") {
+          giveUpReconnecting(message.message);
+          return;
+        }
         errorMessage = message.message;
         break;
       case "allianceShouted":
@@ -144,17 +267,33 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
         // that render() would reflect, so skip the re-render below.
         showAllianceBanner(message.text);
         return;
+      case "playerLeft":
+        stopReconnectLoop();
+        clearRoomSession();
+        showAlert(`${message.playerName}의 접속이 종료되어 게임을 종료합니다.`).then(() => {
+          roomCode = "";
+          roomName = "";
+          hostId = "";
+          lobbyPlayers = [];
+          lastView = null;
+          errorMessage = "";
+          screen = "chooser";
+          render();
+          refreshOpenRooms();
+        });
+        return;
     }
     render();
   }
 
   function render(): void {
-    // chooser/lobby are short cards like every other .setup screen — center
-    // them vertically the same way; the board is full layout, not a card,
-    // so it gets normal top-aligned document flow instead.
+    // chooser/lobby/connecting are short cards like every other .setup
+    // screen — center them vertically the same way; the board is full
+    // layout, not a card, so it gets normal top-aligned document flow.
     document.body.classList.toggle("center-screen", screen !== "game");
     if (screen === "chooser") renderChooser();
     else if (screen === "lobby") renderLobby();
+    else if (screen === "connecting") renderConnecting();
     else renderGame();
   }
 
@@ -162,18 +301,27 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     ensureSocket(() => send({ type: "joinRoom", roomCode: code, playerName: getNickname() }));
   }
 
+  function renderConnecting(): void {
+    disableScreenWakeLock();
+    app.innerHTML = "";
+    const container = document.createElement("div");
+    container.className = "setup";
+    container.innerHTML = `<h1>Fuji Flush · 같이하기</h1><p></p>`;
+    container.querySelector("p")!.textContent = connectingMessage;
+    app.appendChild(container);
+  }
+
   function renderChooser(): void {
+    disableScreenWakeLock();
     const prefilledCode = new URLSearchParams(location.search).get("room") ?? "";
     if (prefilledCode && !autoJoinAttempted) {
       autoJoinAttempted = true;
       // One-shot — a later page refresh shouldn't try to rejoin the same
       // room automatically (they may have deliberately left it).
       history.replaceState(null, "", location.pathname);
-      app.innerHTML = "";
-      const container = document.createElement("div");
-      container.className = "setup";
-      container.innerHTML = `<h1>Fuji Flush · 같이하기</h1><p>초대받은 방에 참가하는 중...</p>`;
-      app.appendChild(container);
+      screen = "connecting";
+      connectingMessage = "초대받은 방에 참가하는 중...";
+      render();
       joinRoomByCode(prefilledCode);
       return;
     }
@@ -229,6 +377,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   }
 
   function renderLobby(): void {
+    disableScreenWakeLock();
     app.innerHTML = "";
     const container = document.createElement("div");
     container.className = "setup";
@@ -313,6 +462,14 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     });
   }
 
-  render();
-  refreshOpenRooms();
+  const savedSession = loadRoomSession();
+  if (savedSession) {
+    screen = "connecting";
+    connectingMessage = "다시 연결하는 중...";
+    render();
+    startReconnectLoop();
+  } else {
+    render();
+    refreshOpenRooms();
+  }
 }

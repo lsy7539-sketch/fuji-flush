@@ -8,6 +8,7 @@ import { startNetworkMode } from "./networkMode";
 import { renderProfile } from "./profile";
 import { renderRulebook } from "./rulebook";
 import { getSpeed, setSpeed, type Speed } from "./speed";
+import { disableScreenWakeLock } from "./wakeLock";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -106,6 +107,7 @@ function renderModeSelect(): void {
 }
 
 function renderLocalSetup(): void {
+  disableScreenWakeLock();
   app.innerHTML = "";
   document.body.classList.remove("pixel-menu-screen");
   document.body.classList.add("center-screen");
