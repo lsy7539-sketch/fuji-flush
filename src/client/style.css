@@ -1622,6 +1622,27 @@ input:focus-visible {
   font-size: 0.85rem;
 }
 
+/* stacked (room header row, then a player-names line) instead of
+   .code-list li's default single row — a room's player list doesn't fit
+   naturally inline next to its name/status/code. */
+.online-room-list li {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+}
+
+.online-room-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.online-room-players {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
 .code-value {
   font-family: var(--font-display);
   font-weight: 700;

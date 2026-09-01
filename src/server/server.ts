@@ -3,7 +3,7 @@ import http from "node:http";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { WebSocketServer } from "ws";
-import { handleConnection } from "./rooms";
+import { handleConnection, listConnectedRooms } from "./rooms";
 import { initDb } from "./db";
 import {
   checkAccessCode,
@@ -195,6 +195,12 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
 
 app.get("/api/admin/codes", requireAdmin, async (_req, res) => {
   res.json({ codes: await listAccessCodes() });
+});
+
+// "현재 접속중" — see rooms.ts's listConnectedRooms for exactly what this
+// can and can't see (only 같이하기 rooms, not local-mode/menu browsing).
+app.get("/api/admin/online", requireAdmin, (_req, res) => {
+  res.json({ rooms: listConnectedRooms() });
 });
 
 app.post("/api/admin/codes", requireAdmin, async (req, res) => {

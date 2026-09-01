@@ -30,6 +30,30 @@ interface Room {
 const rooms = new Map<string, Room>();
 let nextPlayerNumber = 1;
 
+export interface RoomSummary {
+  code: string;
+  name: string;
+  status: Room["status"];
+  hostName: string;
+  players: string[];
+}
+
+// For the admin panel's "현재 접속중" view (server.ts's GET /api/admin/online).
+// Only ever reflects players in an actual 같이하기 room — this is the one
+// thing the server can honestly know about who's "connected" at all, since
+// login is a stateless code check with no server-side session, and a
+// WebSocket only opens once someone actually creates/joins a room (not just
+// while they're sitting on 혼자하기 or a menu screen).
+export function listConnectedRooms(): RoomSummary[] {
+  return [...rooms.values()].map((room) => ({
+    code: room.code,
+    name: room.name,
+    status: room.status,
+    hostName: room.players.find((p) => p.id === room.hostPlayerId)?.name ?? "",
+    players: room.players.map((p) => p.name),
+  }));
+}
+
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) {
     socket.send(JSON.stringify(message));

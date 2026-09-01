@@ -5,12 +5,27 @@ interface AccessCodeRow {
   nickname: string;
 }
 
+interface OnlineRoom {
+  code: string;
+  name: string;
+  status: "LOBBY" | "IN_PROGRESS" | "FINISHED";
+  hostName: string;
+  players: string[];
+}
+
+const ROOM_STATUS_LABEL: Record<OnlineRoom["status"], string> = {
+  LOBBY: "대기중",
+  IN_PROGRESS: "게임중",
+  FINISHED: "종료",
+};
+
 const ADMIN_SESSION_KEY = "fuji-flush-admin-password";
 
 export function startAdminMode(app: HTMLElement, onExit: () => void): void {
   let password = sessionStorage.getItem(ADMIN_SESSION_KEY) ?? "";
   let authed = false;
   let codes: AccessCodeRow[] = [];
+  let onlineRooms: OnlineRoom[] = [];
   let error = "";
   let codeFormError = "";
   let editingCode: string | null = null;
@@ -29,7 +44,7 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
         sessionStorage.setItem(ADMIN_SESSION_KEY, candidate);
         authed = true;
         error = "";
-        await refreshCodes();
+        await Promise.all([refreshCodes(), refreshOnline()]);
       } else {
         authed = false;
         error = data.message ?? "비밀번호가 올바르지 않습니다.";
@@ -48,6 +63,19 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
     if (res.ok) {
       const data = await res.json();
       codes = data.codes;
+    }
+  }
+
+  // "현재 접속중" — see rooms.ts's listConnectedRooms doc comment for what
+  // this can and can't see (only 같이하기 rooms). Manual refresh only (no
+  // polling), matching every other admin action in this file.
+  async function refreshOnline(): Promise<void> {
+    const res = await fetch("/api/admin/online", {
+      headers: { "x-admin-password": password },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      onlineRooms = data.rooms;
     }
   }
 
@@ -174,6 +202,23 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
       )
       .join("");
 
+    const onlineRows = onlineRooms
+      .map(
+        (r) => `
+          <li>
+            <div class="online-room-head">
+              <span class="code-value">${r.name}</span>
+              <span class="badge badge-turn">${ROOM_STATUS_LABEL[r.status]}</span>
+              <span class="code-date">코드 ${r.code}</span>
+            </div>
+            <div class="online-room-players">${r.players
+              .map((name) => (name === r.hostName ? `${name} (방장)` : name))
+              .join(", ")}</div>
+          </li>
+        `,
+      )
+      .join("");
+
     container.innerHTML = `
       <h1>입장 코드 관리</h1>
       <p>코드 하나가 계정 하나예요 — 코드, 닉네임을 함께 등록하세요. 그 코드로 로그인하면
@@ -190,6 +235,13 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
       ${codeFormError ? `<div class="message">${codeFormError}</div>` : ""}
       ${editNicknameError ? `<div class="message">${editNicknameError}</div>` : ""}
       <ul class="code-list">${rows || `<li class="code-empty">아직 등록한 코드가 없습니다.</li>`}</ul>
+
+      <h1>현재 접속중 (같이하기)</h1>
+      <p>온라인 방에 실제로 들어가 있는 사람만 보여요 — 혼자하기나 메뉴 화면에 있는 사람은
+      서버가 알 수 없어요.</p>
+      <button id="online-refresh-btn" type="button" class="edit-nickname-btn">새로고침</button>
+      <ul class="code-list online-room-list">${onlineRows || `<li class="code-empty">현재 접속중인 온라인 방이 없습니다.</li>`}</ul>
+
       <button id="admin-exit-btn">나가기</button>
     `;
     app.appendChild(container);
@@ -246,6 +298,10 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
         )!;
         updateCodeNickname(btn.dataset.code!, input.value);
       });
+    });
+    container.querySelector("#online-refresh-btn")!.addEventListener("click", async () => {
+      await refreshOnline();
+      render();
     });
     container.querySelector("#admin-exit-btn")!.addEventListener("click", onExit);
   }
