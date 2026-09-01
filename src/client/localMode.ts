@@ -48,10 +48,10 @@ export function startLocalMode(
   // — after that the ordinary "내 차례예요" prompt is enough, since
   // describeMoveForBeginner is already explaining each case as it comes up.
   let shownBeginnerIntro = false;
-  // Beginner mode's explanations are longer than the normal terse messages,
-  // so they need more time on screen — 0.7x playback speed, i.e. each
-  // duration stretched by 1/0.7, on top of whatever slow/normal/fast was
-  // already chosen in setup.
+  // Beginner mode's "thinking" pause before a bot's move is revealed still
+  // runs on a timer (there's nothing to read yet), just slowed to 0.7x
+  // playback speed like everything else here — but the pause *after* a
+  // message appears is no longer a timer at all, see holdMessage below.
   const BEGINNER_TIMING_SCALE = 1 / 0.7;
   function timingFor(speedSetting: typeof speed): Timing {
     const base = getTiming(speedSetting);
@@ -63,6 +63,65 @@ export function startLocalMode(
     };
   }
 
+  // Beginner mode's message log — every explanation shown gets appended
+  // here, so "◀ 뒤로" can re-display an earlier one without touching game
+  // state. beginnerLogIndex is whichever entry is currently on screen.
+  const beginnerLog: string[] = [];
+  let beginnerLogIndex = -1;
+  // Set while holdMessage is waiting on "다음 ▶" — the gate itself. Also
+  // doubles as "don't let the human sneak a card in right now": state may
+  // already have moved on to their turn under the hood (resolveMove already
+  // applied it) before they've actually pressed 다음 on the message
+  // explaining *why*.
+  let resolveBeginnerNext: (() => void) | null = null;
+
+  function pushBeginnerLog(msg: string): void {
+    if (!msg) return;
+    beginnerLog.push(msg);
+    beginnerLogIndex = beginnerLog.length - 1;
+  }
+
+  // Replaces the old timer-based "hold this message on screen" delay, in
+  // beginner mode only — logs the current message and waits for an explicit
+  // "다음 ▶" click (see beginnerNext) instead of a timeout. Normal mode is
+  // untouched: still just sleeps, scaled by notability as before.
+  async function holdMessage(notable: boolean): Promise<void> {
+    if (beginnerMode) {
+      pushBeginnerLog(message);
+      await new Promise<void>((resolve) => {
+        resolveBeginnerNext = resolve;
+        render();
+      });
+      return;
+    }
+    const timing = timingFor(speed);
+    await sleep(notable ? timing.reveal + timing.eventBonus : 0);
+  }
+
+  function beginnerBack(): void {
+    if (beginnerLogIndex <= 0) return;
+    beginnerLogIndex -= 1;
+    message = beginnerLog[beginnerLogIndex];
+    render();
+  }
+
+  function beginnerNext(): void {
+    if (beginnerLogIndex < beginnerLog.length - 1) {
+      // Already-seen ground — just page forward through it, no game state
+      // touched.
+      beginnerLogIndex += 1;
+      message = beginnerLog[beginnerLogIndex];
+      render();
+      return;
+    }
+    // Caught up to the latest — release whatever's waiting at the gate, if
+    // anything (a no-op otherwise, e.g. it's genuinely the human's own turn
+    // and there's nothing to advance).
+    const resolve = resolveBeginnerNext;
+    resolveBeginnerNext = null;
+    resolve?.();
+  }
+
   function render(): void {
     renderBoard(app, toPlayerView(state, HUMAN_ID, { revealAll: beginnerMode }), {
       message,
@@ -70,9 +129,18 @@ export function startLocalMode(
       newCardId,
       winnerOrder,
       beginnerMode,
+      beginnerGated: resolveBeginnerNext !== null,
+      beginnerNav: beginnerMode
+        ? {
+            canBack: beginnerLogIndex > 0,
+            canNext: beginnerLogIndex < beginnerLog.length - 1 || resolveBeginnerNext !== null,
+          }
+        : undefined,
       onPlayCard: handlePlayCard,
       onBack,
       onTogglePause: togglePause,
+      onBeginnerBack: beginnerBack,
+      onBeginnerNext: beginnerNext,
       onQuit: async () => {
         if (await showConfirm("정말 게임을 나가시겠어요? 진행 상황이 사라집니다.")) {
           onHome();
@@ -91,11 +159,14 @@ export function startLocalMode(
   function togglePause(): void {
     paused = !paused;
     render();
-    if (!paused) runTurn();
+    // If a beginner-mode gate is currently open, the awaited holdMessage()
+    // call already owns resuming the flow (via 다음 ▶) — calling runTurn()
+    // here too would start a second, overlapping run.
+    if (!paused && !resolveBeginnerNext) runTurn();
   }
 
   async function handlePlayCard(playerId: string, cardId?: string): Promise<void> {
-    if (paused) return;
+    if (paused || resolveBeginnerNext) return;
     newCardId = null;
     const before = state;
     let after: GameState;
@@ -112,8 +183,7 @@ export function startLocalMode(
     const described = describe(before, after, playerId);
     message = described.message;
     await resolveMove(before, after);
-    const timing = timingFor(speed);
-    await sleep(described.notable ? timing.reveal + timing.eventBonus : 0);
+    await holdMessage(described.notable);
     runTurn();
   }
 
@@ -138,8 +208,7 @@ export function startLocalMode(
       const described = describe(before, after, current.id);
       message = described.message;
       await resolveMove(before, after);
-      const timing = timingFor(speed);
-      await sleep(timing.reveal + timing.eventBonus);
+      await holdMessage(true);
       if (paused || isFinished()) return;
       current = state.players[state.currentPlayerIndex];
     }
@@ -151,6 +220,9 @@ export function startLocalMode(
         shownBeginnerIntro = true;
         message =
           "👋 차례마다 손패에서 카드 1장을 내요. 더 높은 숫자를 내면 테이블의 낮은 카드를 밀어내고(Flush), 상대는 새 카드를 받아요. 같은 숫자를 내면 서로 연합해서 힘(POWER)을 합쳐요. 손패를 가장 먼저 다 없애면 승리! 카드를 하나 골라볼까요? 🎴";
+        // Logged so 뒤로 can bring it back later, but not gated — actually
+        // picking a card is the human's own way of saying "I've read this".
+        pushBeginnerLog(message);
       } else {
         message = beginnerMode
           ? "내 차례예요! 어떤 카드를 내야 좋을까요??? 🎴"
@@ -160,10 +232,9 @@ export function startLocalMode(
       return;
     }
 
-    const timing = timingFor(speed);
     message = `${current.name}의 차례입니다...`;
     render();
-    await sleep(timing.think);
+    await sleep(timingFor(speed).think);
     if (paused) return;
 
     const before = state;
@@ -172,7 +243,7 @@ export function startLocalMode(
     const described = describe(before, after, current.id);
     message = described.message || `${current.name}가 카드를 냈습니다.`;
     await resolveMove(before, after);
-    await sleep(timing.reveal + (described.notable ? timing.eventBonus : 0));
+    await holdMessage(described.notable);
     runTurn();
   }
 

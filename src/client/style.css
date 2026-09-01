@@ -550,6 +550,38 @@ input:focus-visible {
   text-align: center;
 }
 
+/* "초보자 전용 게임하기" — manual paging through describeMoveForBeginner's
+   explanations instead of a timer (localMode.ts's holdMessage/beginnerNav). */
+.beginner-nav {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.beginner-nav button {
+  cursor: pointer;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.beginner-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.beginner-nav button:not(:disabled):hover {
+  filter: brightness(0.95);
+}
+
+#beginner-next:not(:disabled) {
+  background: var(--accent);
+}
+
 /* base .message reads as an alert (inverted fill) — the palette forbids
    red, so "this needs attention" comes from contrast/inversion instead of
    color-coding. .pause softens that to a neutral tint; .win flips it to a

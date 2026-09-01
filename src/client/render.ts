@@ -16,10 +16,18 @@ export interface BoardCallbacks {
    *  itself already has every hand revealed (view.players[].cards is
    *  non-null for opponents too, via toPlayerView's revealAll option). */
   beginnerMode?: boolean;
+  /** true while localMode.ts is holding on an explanation waiting for
+   *  "다음 ▶" — disables the hand so a click can't sneak a move in before
+   *  the viewer has actually advanced past what they're reading. */
+  beginnerGated?: boolean;
+  /** state for the ◀ 뒤로 / 다음 ▶ buttons (beginner mode only). */
+  beginnerNav?: { canBack: boolean; canNext: boolean };
   onPlayCard: (playerId: string, cardId?: string) => void;
   onBack: () => void;
   onTogglePause: () => void;
   onQuit: () => void;
+  onBeginnerBack?: () => void;
+  onBeginnerNext?: () => void;
 }
 
 export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks: BoardCallbacks): void {
@@ -134,12 +142,23 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     const commentary = document.createElement("div");
     commentary.className = "table-message";
     commentary.innerHTML = `
-      ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
+      ${callbacks.message ? `<div class="message">${formatMessage(callbacks.message)}</div>` : ""}
+      ${
+        callbacks.beginnerMode && callbacks.beginnerNav
+          ? `
+        <div class="beginner-nav">
+          <button type="button" id="beginner-back" ${callbacks.beginnerNav.canBack ? "" : "disabled"}>◀ 뒤로</button>
+          <button type="button" id="beginner-next" ${callbacks.beginnerNav.canNext ? "" : "disabled"}>다음 ▶</button>
+        </div>`
+          : ""
+      }
       ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
       ${isFinished ? renderFinalRanking(view, callbacks.winnerOrder) : ""}
       ${callbacks.paused ? `<div class="message pause">일시정지됨 — ▶ 버튼을 눌러 계속하세요</div>` : ""}
     `;
     container.appendChild(commentary);
+    commentary.querySelector("#beginner-back")?.addEventListener("click", () => callbacks.onBeginnerBack?.());
+    commentary.querySelector("#beginner-next")?.addEventListener("click", () => callbacks.onBeginnerNext?.());
   }
 
   container.appendChild(Object.assign(document.createElement("div"), { className: "board-spacer" }));
@@ -148,7 +167,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   const viewer = view.players.find((p) => p.id === view.viewerId);
   if (viewer) {
     const isCurrent = viewer.id === currentPlayerId && !isFinished;
-    const canPlay = isCurrent && !viewer.isWinner && !callbacks.paused;
+    const canPlay = isCurrent && !viewer.isWinner && !callbacks.paused && !callbacks.beginnerGated;
     const handSort = getHandSort();
     const sortedCards = sortByValue(viewer.cards ?? [], handSort);
 
@@ -226,6 +245,25 @@ function shoutAlliance(): void {
   banner.innerHTML = `<span class="alliance-banner-text">🤝 연합!!! 🤝</span>`;
   document.body.appendChild(banner);
   setTimeout(() => banner.remove(), 1400);
+}
+
+// Breaks a message onto a new line after each sentence (., !, or ? followed
+// by a space) instead of leaving it as one dense wrapped paragraph — mainly
+// for describeMoveForBeginner's longer, multi-sentence explanations, but
+// harmless (a no-op) on the normal short one-liners. Splitting on commas
+// too was considered, but victim/ally name lists ("카리나, 안유진의 카드가
+// 밀려났습니다") use commas mid-clause, not as sentence boundaries, so that
+// would fragment those. A trailing fragment that doesn't itself end in
+// sentence punctuation (a closing "(...)", or a decorative emoji like the
+// 🎴 at the end of the turn prompts) is folded back onto the line before it
+// instead of standing alone.
+function formatMessage(text: string): string {
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length > 1 && !/[.!?]$/.test(sentences[sentences.length - 1])) {
+    const last = sentences.pop()!;
+    sentences[sentences.length - 1] += ` ${last}`;
+  }
+  return sentences.join("<br>");
 }
 
 // A finished player's seat/hand badge — "1등"/"2등"/etc rather than a bare
