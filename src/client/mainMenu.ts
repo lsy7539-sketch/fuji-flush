@@ -33,7 +33,7 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
         ${menuItemHtml("network", "같이하기", false)}
         ${menuItemHtml("rulebook", "RULE BOOK", false)}
       </nav>
-      <button class="ff-beginner-link" type="button">${arrowIconSvg()}<span>초보자 모드 Play!</span></button>
+      <button class="ff-beginner-link" type="button">${arrowIconSvg()}<span>입문 가이드 Play!</span></button>
       <div class="ff-grass" aria-hidden="true">${grassDecorationSvg()}</div>
       ${opts.showAdminLink ? `<a class="ff-admin-link" href="#admin">관리자 모드</a>` : ""}
     </div>

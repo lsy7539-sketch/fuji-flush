@@ -122,7 +122,7 @@ function renderLocalSetup(): void {
     selectedFriendNames = selectedFriendNames.slice(0, maxFriendPicks);
   }
   container.innerHTML = `
-    <h1>Fuji Flush · ${localBeginnerMode ? "초보자 모드" : "혼자하기"}</h1>
+    <h1>Fuji Flush · ${localBeginnerMode ? "입문 가이드" : "혼자하기"}</h1>
     ${localBeginnerMode ? `<p>모든 상대방의 손패가 보이고, 상황이 벌어질 때마다 왜 그런지 자세히 설명해드려요. 카드는 직접 골라 내시면 돼요.</p>` : ""}
     <label>전체 인원 수 (나 + AI, 3~8명)</label>
     <div class="stepper" role="group" aria-label="전체 인원 수">

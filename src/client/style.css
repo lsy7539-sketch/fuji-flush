@@ -725,6 +725,7 @@ input:focus-visible {
 /* holds the bordered card plus the "turn!" tag underneath it — the tag
    needs to sit outside that border, not just be another item inside it. */
 .opponent-wrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -738,6 +739,14 @@ input:focus-visible {
   align-items: center;
   gap: 0.3rem;
   width: 100%;
+  /* .opponent-wrap (a column flex container) already stretches every seat
+     to match the tallest one in its row via the default align-items:
+     stretch — but that only sizes .opponent-wrap itself. Without growing
+     .opponent (the actual bordered box) to fill that, a seat with a
+     shorter hand or no alliance badge just leaves blank space below its
+     box instead of matching height, which is the "들쭉날쭉" the boxes
+     shouldn't have. */
+  flex: 1 0 auto;
   background: var(--panel);
   border: 2px solid var(--line);
   border-radius: var(--radius-md);
@@ -810,9 +819,16 @@ input:focus-visible {
    the .opponent.current border color-change alone is easy to miss at a
    glance, especially scrolled off to one side on a narrow phone. */
 /* plain text, no badge box — sits right under the card via .opponent-wrap,
-   not inside its border. */
+   not inside its border. Absolutely positioned (unlike .last-card-flag)
+   because it needs to NOT consume any of .opponent-wrap's height — every
+   .opponent box must stay the same size regardless of whose turn it is,
+   and this tag existing only for the current player would otherwise eat
+   into that one seat's own share of the stretched wrap height. */
 .turn-tag {
-  margin-top: 0.3rem;
+  position: absolute;
+  bottom: -1.05rem;
+  left: 50%;
+  transform: translateX(-50%);
   white-space: nowrap;
   font-size: 0.62rem;
   font-weight: 700;

@@ -43,7 +43,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   header.className = "header";
   header.innerHTML = `
     <div class="header-top">
-      <h1>Fuji Flush${callbacks.beginnerMode ? " · 초보자 모드" : ""}</h1>
+      <h1>Fuji Flush${callbacks.beginnerMode ? " · 입문 가이드" : ""}</h1>
       <div class="game-controls">
         <button class="ctrl-btn" id="ctrl-back" title="뒤로가기" aria-label="뒤로가기">←</button>
         <button class="ctrl-btn" id="ctrl-pause" title="${callbacks.paused ? "계속하기" : "일시정지"}" aria-label="일시정지">${
