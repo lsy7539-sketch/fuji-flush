@@ -52,7 +52,23 @@ const app = express();
 // admin-login rate limit share one bucket across all real visitors.
 app.set("trust proxy", true);
 app.use(express.json());
-app.use(express.static(distDir));
+// index.html must never be cached — it's what points browsers at the
+// current hashed JS/CSS bundle, so a stale cached copy of *it* is what
+// makes a deploy look like it "didn't take" on a phone (mobile browsers,
+// and in-app webviews especially, tend to hang onto a plain max-age=0
+// response far more readily than desktop Chrome does). Every other file
+// under dist/assets/ is content-hashed by Vite, so it's safe — actually
+// correct — to cache those aggressively forever.
+app.use(
+  express.static(distDir, {
+    setHeaders: (res, filePath) => {
+      res.setHeader(
+        "Cache-Control",
+        filePath.endsWith("index.html") ? "no-store" : "public, max-age=31536000, immutable",
+      );
+    },
+  }),
+);
 
 app.post("/api/login", async (req, res) => {
   const code = req.body?.code;
