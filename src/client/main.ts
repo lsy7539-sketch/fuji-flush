@@ -129,10 +129,10 @@ function renderLocalSetup(): void {
       <span class="stepper-value">${localPlayerCount}</span>
       <button type="button" id="player-count-plus" aria-label="인원 수 증가" ${localPlayerCount >= 8 ? "disabled" : ""}>+</button>
     </div>
+    <label>함께할 친구 선택 (안 고르면 기존처럼 무작위 이름)</label>
     ${
       friends.length > 0
         ? `
-      <label>함께할 친구 선택 (안 고르면 기존처럼 무작위 이름)</label>
       <div class="friend-picker" role="group" aria-label="함께할 친구 선택">
         ${friends
           .map((name) => {
@@ -142,7 +142,7 @@ function renderLocalSetup(): void {
           })
           .join("")}
       </div>`
-        : ""
+        : `<p class="friend-picker-hint">＞ 내 정보 화면에서 함께할 친구를 추가하세요!</p>`
     }
     <label>게임 진행 속도</label>
     <div class="toggle-group" role="group" aria-label="게임 진행 속도">

@@ -249,12 +249,50 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
 // any time, unrelated to whether an actual alliance is happening on the
 // table. A fixed overlay (like the flying-card animation) so it plays over
 // whatever's on screen and removes itself when done.
+//
+// Deliberately built around .center-table's own position (draw/discard
+// pile) instead of the raw viewport center: the ring/particles burst out
+// *from* that point but move away from it immediately, and the text banner
+// lands above or below it (whichever has more room) rather than dead
+// center — so the pile itself stays visible under the fanfare instead of
+// getting covered by it.
 function shoutAlliance(): void {
-  const banner = document.createElement("div");
-  banner.className = "alliance-banner";
-  banner.innerHTML = `<span class="alliance-banner-text">🤝 연합!!! 🤝</span>`;
-  document.body.appendChild(banner);
-  setTimeout(() => banner.remove(), 1400);
+  const pileRect = document.querySelector(".center-table")?.getBoundingClientRect();
+  const originX = pileRect ? pileRect.left + pileRect.width / 2 : window.innerWidth / 2;
+  const originY = pileRect ? pileRect.top + pileRect.height / 2 : window.innerHeight / 2;
+  const bannerTop =
+    originY > window.innerHeight * 0.4
+      ? Math.max(originY - 150, 20)
+      : Math.min(originY + 110, window.innerHeight - 60);
+
+  const overlay = document.createElement("div");
+  overlay.className = "alliance-banner";
+  overlay.innerHTML = `
+    <div class="alliance-ring" style="left:${originX}px; top:${originY}px;"></div>
+    <div class="alliance-ring alliance-ring-delayed" style="left:${originX}px; top:${originY}px;"></div>
+    <div class="alliance-banner-pos" style="top:${bannerTop}px;">
+      <span class="alliance-banner-text">🤝 연합!!! 🤝</span>
+    </div>
+  `;
+
+  const particleEmojis = ["🤝", "✨", "💥", "⚡"];
+  const particleCount = 16;
+  for (let i = 0; i < particleCount; i++) {
+    const particle = document.createElement("span");
+    particle.className = "alliance-particle";
+    particle.textContent = particleEmojis[i % particleEmojis.length];
+    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.3;
+    const distance = 110 + Math.random() * 90;
+    particle.style.left = `${originX}px`;
+    particle.style.top = `${originY}px`;
+    particle.style.setProperty("--tx", `${Math.cos(angle) * distance}px`);
+    particle.style.setProperty("--ty", `${Math.sin(angle) * distance}px`);
+    particle.style.animationDelay = `${Math.random() * 90}ms`;
+    overlay.appendChild(particle);
+  }
+
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 1500);
 }
 
 // Breaks a message onto a new line after each sentence (., !, or ? followed

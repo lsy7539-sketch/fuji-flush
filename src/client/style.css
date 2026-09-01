@@ -1052,10 +1052,69 @@ input:focus-visible {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   pointer-events: none;
+  overflow: hidden;
+}
+
+/* positioned via inline style (render.ts) at the .center-table's own X, so
+   the text lands above/below the draw/discard pile instead of on top of it */
+.alliance-banner-pos {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* a hollow expanding ring centered on the pile — only its thin border is
+   ever drawn over the pile, and it's gone within a beat */
+.alliance-ring {
+  position: fixed;
+  width: 0;
+  height: 0;
+  transform: translate(-50%, -50%);
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  animation: alliance-ring-expand 850ms ease-out forwards;
+}
+
+.alliance-ring-delayed {
+  animation-delay: 180ms;
+  border-color: var(--ink);
+}
+
+@keyframes alliance-ring-expand {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.4;
+  }
+  100% {
+    width: 360px;
+    height: 360px;
+    opacity: 0;
+  }
+}
+
+.alliance-particle {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  opacity: 0;
+  animation: alliance-particle-fly 900ms ease-out forwards;
+}
+
+@keyframes alliance-particle-fly {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.15);
+    opacity: 0;
+  }
 }
 
 /* stands in for window.confirm() (see confirmDialog.ts) — several in-app
@@ -1559,6 +1618,12 @@ input:focus-visible {
   color: var(--ink);
 }
 
+.friend-picker-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
 /* narrow phones: a wrapped, off-center grid of opponent seats and a hand
    that spills onto a second row both read as clutter — line each up into
    one row instead. Every opponent shares the row equally (flex: 1 1 0) and
@@ -1719,7 +1784,9 @@ input:focus-visible {
   }
   .hand-card.just-drawn,
   .turn-flag,
-  .alliance-banner-text {
+  .alliance-banner-text,
+  .alliance-ring,
+  .alliance-particle {
     animation: none;
   }
 }
