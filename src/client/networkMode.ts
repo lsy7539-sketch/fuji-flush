@@ -109,6 +109,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   }
 
   function render(): void {
+    // chooser/lobby are short cards like every other .setup screen — center
+    // them vertically the same way; the board is full layout, not a card,
+    // so it gets normal top-aligned document flow instead.
+    document.body.classList.toggle("center-screen", screen !== "game");
     if (screen === "chooser") renderChooser();
     else if (screen === "lobby") renderLobby();
     else renderGame();

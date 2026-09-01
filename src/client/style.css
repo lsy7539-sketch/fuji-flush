@@ -121,28 +121,36 @@ input:focus-visible {
 .setup {
   max-width: 360px;
   margin: 3rem auto;
-  padding: 2rem;
+  padding: 1.6rem;
   background: var(--panel);
   border: 2px solid var(--line);
   border-radius: var(--radius-lg);
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.8rem;
+}
+
+/* smaller than the board's own h1 (see .header-top h1) — these are
+   compact setup cards, not a title screen, so a 2.1rem heading read as
+   oversized for what's a small login/setup/profile box. */
+.setup h1 {
+  font-size: 1.3rem;
+  letter-spacing: 0.02em;
 }
 
 .setup label {
   text-align: left;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   margin-bottom: -0.4rem;
 }
 
 .setup input {
-  padding: 0.65rem 0.8rem;
-  font-size: 0.95rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.85rem;
   font-family: var(--font-body);
   background: var(--card-face);
   border: 2px solid var(--line);
@@ -161,7 +169,7 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--ink);
   background: var(--card-face);
@@ -171,8 +179,8 @@ input:focus-visible {
 
 .stepper button {
   cursor: pointer;
-  width: 3rem;
-  font-size: 1.3rem;
+  width: 2.6rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--ink);
   background: var(--panel);
@@ -193,9 +201,9 @@ input:focus-visible {
   cursor: pointer;
   border: 2px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  padding: 0.7rem 1rem;
+  padding: 0.6rem 0.9rem;
 }
 
 .setup > button:first-of-type,
@@ -422,9 +430,10 @@ input:focus-visible {
   border-radius: 2px;
   background: transparent;
   color: var(--text-dim);
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  padding: 0.45rem 0.6rem;
+  padding: 0.4rem 0.3rem;
+  white-space: nowrap;
 }
 
 .toggle-btn.active {
@@ -1376,8 +1385,8 @@ input:focus-visible {
 .friend-add-row input {
   flex: 1;
   min-width: 100px;
-  padding: 0.65rem 0.8rem;
-  font-size: 0.95rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.85rem;
   font-family: var(--font-body);
   background: var(--card-face);
   border: 2px solid var(--line);
@@ -1389,9 +1398,9 @@ input:focus-visible {
   cursor: pointer;
   border: 2px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  padding: 0.7rem 1.1rem;
+  padding: 0.6rem 1rem;
   background: var(--accent);
   color: var(--ink);
   white-space: nowrap;

@@ -28,9 +28,11 @@ function boot(): void {
     return;
   }
   if (!isAuthed()) {
-    // Only this screen gets vertically centered — a short login card looks
-    // stranded pinned to the top on a tall phone screen, but the same trick
-    // would clip the top off a full game board or the rulebook.
+    // center-screen vertically centers a short card — used here and by every
+    // other compact .setup screen (local setup, profile, network chooser/
+    // lobby). Deliberately NOT used for the rulebook or the game board: both
+    // can be taller than the viewport, and centering a scrollable/tall
+    // block risks clipping its top instead of just scrolling normally.
     document.body.classList.add("center-screen");
     renderLoginGate(app, () => {
       document.body.classList.remove("center-screen");
@@ -63,6 +65,7 @@ function renderModeSelect(): void {
     },
     onProfile: () => {
       document.body.classList.remove("pixel-menu-screen");
+      document.body.classList.add("center-screen");
       renderProfile(app, renderModeSelect);
     },
     showAdminLink: isAdminCodeSession(),
@@ -72,6 +75,7 @@ function renderModeSelect(): void {
 function renderLocalSetup(): void {
   app.innerHTML = "";
   document.body.classList.remove("pixel-menu-screen");
+  document.body.classList.add("center-screen");
   const container = document.createElement("div");
   container.className = "setup";
   const speed = getSpeed();
@@ -145,6 +149,7 @@ function renderLocalSetup(): void {
     renderLocalSetup();
   });
   container.querySelector("#start-btn")!.addEventListener("click", () => {
+    document.body.classList.remove("center-screen");
     // "뒤로가기" during the game re-opens this same setup screen; "✕" goes
     // all the way home to mode-select.
     startLocalMode(app, localPlayerCount, selectedFriendNames, renderLocalSetup, renderModeSelect);
