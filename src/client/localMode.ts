@@ -3,7 +3,7 @@ import { showConfirm } from "./confirmDialog";
 import { GameError, createGame, playCard, resolveTurnStart } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import { computeDiscardEvents, computeDrawEvents, flyCard } from "./drawAnimation";
-import { getSpeed, getTiming } from "./speed";
+import { getSpeed, getTiming, type Timing } from "./speed";
 import type { GameState } from "../engine/types";
 import { renderBoard } from "./render";
 
@@ -45,9 +45,23 @@ export function startLocalMode(
   const speed = getSpeed();
   const describe = beginnerMode ? describeMoveForBeginner : describeMove;
   // Shown once, the very first time it's the viewer's turn in beginner mode
-  // — after that the ordinary "당신 차례예요" prompt is enough, since
+  // — after that the ordinary "내 차례예요" prompt is enough, since
   // describeMoveForBeginner is already explaining each case as it comes up.
   let shownBeginnerIntro = false;
+  // Beginner mode's explanations are longer than the normal terse messages,
+  // so they need more time on screen — 0.7x playback speed, i.e. each
+  // duration stretched by 1/0.7, on top of whatever slow/normal/fast was
+  // already chosen in setup.
+  const BEGINNER_TIMING_SCALE = 1 / 0.7;
+  function timingFor(speedSetting: typeof speed): Timing {
+    const base = getTiming(speedSetting);
+    if (!beginnerMode) return base;
+    return {
+      think: Math.round(base.think * BEGINNER_TIMING_SCALE),
+      reveal: Math.round(base.reveal * BEGINNER_TIMING_SCALE),
+      eventBonus: Math.round(base.eventBonus * BEGINNER_TIMING_SCALE),
+    };
+  }
 
   function render(): void {
     renderBoard(app, toPlayerView(state, HUMAN_ID, { revealAll: beginnerMode }), {
@@ -98,7 +112,7 @@ export function startLocalMode(
     const described = describe(before, after, playerId);
     message = described.message;
     await resolveMove(before, after);
-    const timing = getTiming(speed);
+    const timing = timingFor(speed);
     await sleep(described.notable ? timing.reveal + timing.eventBonus : 0);
     runTurn();
   }
@@ -124,7 +138,7 @@ export function startLocalMode(
       const described = describe(before, after, current.id);
       message = described.message;
       await resolveMove(before, after);
-      const timing = getTiming(speed);
+      const timing = timingFor(speed);
       await sleep(timing.reveal + timing.eventBonus);
       if (paused || isFinished()) return;
       current = state.players[state.currentPlayerIndex];
@@ -138,13 +152,15 @@ export function startLocalMode(
         message =
           "👋 차례마다 손패에서 카드 1장을 내요. 더 높은 숫자를 내면 테이블의 낮은 카드를 밀어내고(Flush), 상대는 새 카드를 받아요. 같은 숫자를 내면 서로 연합해서 힘(POWER)을 합쳐요. 손패를 가장 먼저 다 없애면 승리! 카드를 하나 골라볼까요? 🎴";
       } else {
-        message = "당신 차례예요! 어떤 카드를 내볼까요? 🎴";
+        message = beginnerMode
+          ? "내 차례예요! 어떤 카드를 내야 좋을까요??? 🎴"
+          : "내 차례예요! 어떤 카드를 내볼까요? 🎴";
       }
       render();
       return;
     }
 
-    const timing = getTiming(speed);
+    const timing = timingFor(speed);
     message = `${current.name}의 차례입니다...`;
     render();
     await sleep(timing.think);

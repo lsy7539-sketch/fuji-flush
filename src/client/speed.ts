@@ -1,6 +1,6 @@
 export type Speed = "slow" | "normal" | "fast";
 
-interface Timing {
+export interface Timing {
   /** delay before an AI move resolves, i.e. "thinking" */
   think: number;
   /** delay after the move resolves, holding the result on screen */
