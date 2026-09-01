@@ -1908,23 +1908,30 @@ input:focus-visible {
   top: 522px;
   left: 50%;
   transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   white-space: nowrap;
   font-family: var(--ff-font);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--ff-green);
-  background: transparent;
-  border: 2px solid var(--ff-green);
+  color: var(--ff-dark);
+  background: var(--ff-point);
+  border: var(--ff-border-width) solid var(--ff-green);
   border-radius: var(--ff-radius);
-  padding: 6px 14px;
+  padding: 8px 16px;
   -webkit-tap-highlight-color: transparent;
+}
+
+.ff-beginner-link svg {
+  flex-shrink: 0;
+  color: var(--ff-dark);
 }
 
 .ff-beginner-link:hover,
 .ff-beginner-link:focus-visible {
-  background: var(--ff-point);
-  color: var(--ff-dark);
+  filter: brightness(0.95);
   outline: none;
 }
 
