@@ -1,79 +1,44 @@
 :root {
-  color-scheme: dark;
-
-  /* Deliberately dark-only — a felt card table, not a document. */
-  --felt: #123c2e;
-  --felt-dark: #0a2a20;
-  --wood: #2b1c12;
-  --wood-light: #3a2818;
-  --line: #4a3624;
-
-  --card-face: #f6ecd8;
-  --card-ink: #241708;
-  --card-owner: #6b5a42;
-
-  --gold: #d4af37;
-  --gold-soft: #e9cd7a;
-
-  --text: #f3ead9;
-  --text-dim: #c2b393;
-
-  --win: #7fae7a;
-  --win-soft: #a7c2a4;
-  --danger: #d9765a;
-  --danger-soft: #f0b49b;
-
-  --font-display: "Fraunces", serif;
-  --font-body: "Libre Franklin", sans-serif;
-
-  --radius-lg: 20px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-
-  /* structural tones — re-themed as a whole in [data-theme="simple"] below */
-  --overlay-soft: rgba(0, 0, 0, 0.2);
-  --overlay-mid: rgba(0, 0, 0, 0.25);
-  --overlay-strong: rgba(0, 0, 0, 0.4);
-  --card-border-subtle: rgba(0, 0, 0, 0.15);
-  --card-shadow: rgba(0, 0, 0, 0.4);
-  --card-shadow-strong: rgba(0, 0, 0, 0.45);
-  --shadow-panel: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
-}
-
-[data-theme="simple"] {
   color-scheme: light;
 
-  --felt: #f7f5f1;
-  --felt-dark: #f7f5f1;
-  --wood: #f5f2ec;
-  --wood-light: #ffffff;
-  --line: #e4e0d8;
+  /* Fuji Flush pixel/handheld palette — shared by every screen (main menu,
+     login, setup/lobby, board, rulebook, admin). Flat colors only: no
+     gradients, no blurred shadows/glow, blocky borders instead of pills. */
+  --bg: #edf0cb;
+  --panel: #f7f8e8;
+  --ink: #183a29;
+  --ink-dim: #315b45;
+  --accent: #a8c95a;
 
   --card-face: #ffffff;
-  --card-ink: #201f1c;
-  --card-owner: #8a8577;
+  --card-ink: var(--ink);
+  --card-owner: var(--ink-dim);
 
-  --gold: #3c6e6a;
-  --gold-soft: #2f5754;
+  --line: var(--ink-dim);
 
-  --text: #201f1c;
-  --text-dim: #8a8577;
+  --text: var(--ink);
+  --text-dim: var(--ink-dim);
 
-  --win: #4f8f63;
-  --win-soft: #3f7350;
-  --danger: #c05f45;
-  --danger-soft: #a24b35;
+  --win: var(--accent);
+  --win-soft: var(--ink-dim);
+  --danger: var(--ink);
+  --danger-soft: var(--ink);
 
-  --font-display: -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif;
+  /* no bundled pixel font — a tight monospace stack reads closest to a
+     retro handheld without adding a new asset. "Noto Sans KR" (already
+     loaded by index.html) is the fallback for Korean text, since none of
+     the monospace faces carry Hangul glyphs. */
+  --font: ui-monospace, "SFMono-Regular", "Courier New", Consolas, Menlo, "Noto Sans KR", monospace;
+  --font-display: var(--font);
+  --font-body: var(--font);
 
-  --overlay-soft: rgba(0, 0, 0, 0.035);
-  --overlay-mid: rgba(0, 0, 0, 0.045);
-  --overlay-strong: rgba(0, 0, 0, 0.07);
-  --card-border-subtle: rgba(0, 0, 0, 0.14);
-  --card-shadow: rgba(0, 0, 0, 0.08);
-  --card-shadow-strong: rgba(0, 0, 0, 0.1);
-  --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --radius-lg: 10px;
+  --radius-md: 8px;
+  --radius-sm: 4px;
+
+  --overlay-soft: rgba(24, 58, 41, 0.06);
+  --overlay-mid: rgba(24, 58, 41, 0.1);
+  --overlay-strong: rgba(24, 58, 41, 0.16);
 }
 
 * {
@@ -84,8 +49,7 @@ body {
   margin: 0;
   min-height: 100vh;
   padding: 3rem 1.5rem;
-  background: radial-gradient(140% 100% at 50% -10%, var(--felt) 0%, var(--felt-dark) 65%);
-  background-color: var(--felt-dark);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 15px;
@@ -108,20 +72,20 @@ body.center-screen #app {
 }
 
 /* toggled only for the main menu (main.ts) — that screen is a full-bleed
-   390x780-style frame with its own background/tokens, so it needs the
-   body's default dark padding/gradient out of the way. */
+   390x780-style frame, so it needs the body's default padding out of the
+   way (the background already matches --bg, this just removes the inset). */
 body.pixel-menu-screen {
   padding: 0;
-  background: #edf0cb;
 }
 
 h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 2.1rem;
-  color: var(--gold-soft);
-  text-shadow: 0 2px 14px color-mix(in srgb, var(--gold) 25%, transparent);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink);
   text-wrap: balance;
 }
 
@@ -140,7 +104,7 @@ button {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--gold-soft);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -150,10 +114,9 @@ input:focus-visible {
   max-width: 360px;
   margin: 3rem auto;
   padding: 2rem;
-  background: linear-gradient(165deg, var(--wood-light), var(--wood));
-  border: 1px solid var(--line);
+  background: var(--panel);
+  border: 2px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-panel);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -172,35 +135,32 @@ input:focus-visible {
 .setup input {
   padding: 0.65rem 0.8rem;
   font-size: 0.95rem;
-  font-family: var(--font-display);
-  background: var(--overlay-mid);
-  border: 1px solid var(--line);
+  font-family: var(--font-body);
+  background: var(--card-face);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--text);
 }
 
 .setup button {
   cursor: pointer;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: 0.95rem;
   font-weight: 700;
   padding: 0.7rem 1rem;
-  transition: transform 120ms ease, filter 120ms ease;
 }
 
 .setup > button:first-of-type,
 .setup #create-btn,
 .setup #start-btn,
 .setup #mode-local {
-  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
-  color: var(--wood);
-  border: none;
+  background: var(--accent);
+  color: var(--ink);
 }
 
 .setup button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
+  filter: brightness(0.95);
 }
 
 .setup #mode-network,
@@ -210,14 +170,13 @@ input:focus-visible {
 .setup #back-btn,
 .setup #invite-btn,
 .setup #lobby-back-btn {
-  background: var(--overlay-soft);
+  background: var(--panel);
   color: var(--text);
 }
 
 .setup button:disabled {
   opacity: 0.45;
   cursor: default;
-  transform: none;
 }
 
 .rulebook {
@@ -236,7 +195,7 @@ input:focus-visible {
 
 .rulebook-section {
   padding-top: 0.9rem;
-  border-top: 1px solid var(--line);
+  border-top: 2px solid var(--line);
 }
 
 .rulebook-section:first-of-type {
@@ -248,8 +207,8 @@ input:focus-visible {
   margin: 0 0 0.4rem;
   font-family: var(--font-display);
   font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--gold-soft);
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .rulebook-section p {
@@ -266,7 +225,7 @@ input:focus-visible {
   margin-top: 0.7rem;
   padding: 0.8rem 0.9rem 0.9rem;
   background: var(--overlay-soft);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
@@ -297,8 +256,8 @@ input:focus-visible {
 .rule-arrow {
   text-align: center;
   font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--gold-soft);
+  font-weight: 700;
+  color: var(--text-dim);
 }
 
 .rule-card {
@@ -314,8 +273,7 @@ input:focus-visible {
   height: 3.8rem;
   border-radius: var(--radius-sm);
   background: var(--card-face);
-  border: 1px solid var(--card-border-subtle);
-  box-shadow: 0 4px 10px var(--card-shadow-strong);
+  border: 2px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -326,8 +284,8 @@ input:focus-visible {
 }
 
 .rule-card.joined .rule-card-face {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 45%, transparent), 0 4px 10px var(--card-shadow-strong);
+  border-color: var(--accent);
+  border-width: 3px;
 }
 
 .rule-card.flushed .rule-card-face {
@@ -344,9 +302,9 @@ input:focus-visible {
   font-family: var(--font-body);
   font-size: 0.5rem;
   font-weight: 700;
-  color: var(--wood);
-  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
-  border-radius: 999px;
+  color: var(--ink);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
   padding: 0.08rem 0.35rem;
 }
 
@@ -379,7 +337,7 @@ input:focus-visible {
 .rule-turn {
   padding: 0.7rem 0.9rem 0.9rem;
   background: var(--overlay-soft);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
@@ -392,7 +350,7 @@ input:focus-visible {
   font-family: var(--font-display);
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--gold-soft);
+  color: var(--ink);
   letter-spacing: 0.04em;
 }
 
@@ -405,7 +363,7 @@ input:focus-visible {
   display: flex;
   gap: 0.4rem;
   background: var(--overlay-soft);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0.25rem;
 }
@@ -414,18 +372,17 @@ input:focus-visible {
   flex: 1;
   cursor: pointer;
   border: none;
-  border-radius: calc(var(--radius-sm) - 4px);
+  border-radius: 2px;
   background: transparent;
   color: var(--text-dim);
   font-size: 0.82rem;
   font-weight: 700;
   padding: 0.45rem 0.6rem;
-  transition: background 140ms ease, color 140ms ease;
 }
 
 .toggle-btn.active {
-  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
-  color: var(--wood);
+  background: var(--accent);
+  color: var(--ink);
 }
 
 .room-code {
@@ -433,7 +390,7 @@ input:focus-visible {
   font-size: 1.7rem;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: var(--gold-soft);
+  color: var(--ink);
 }
 
 .lobby-players {
@@ -448,7 +405,7 @@ input:focus-visible {
 
 .lobby-players li {
   background: var(--overlay-soft);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0.55rem 0.8rem;
   font-size: 0.9rem;
@@ -487,26 +444,25 @@ input:focus-visible {
   cursor: pointer;
   width: 2.3rem;
   height: 2.3rem;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--overlay-mid);
-  color: var(--text);
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
   font-size: 1rem;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 140ms ease, transform 140ms ease;
+  transition: background-color 140ms ease;
 }
 
 .ctrl-btn:hover {
   background: var(--overlay-strong);
-  transform: translateY(-1px);
 }
 
 .ctrl-quit:hover {
-  border-color: var(--danger);
-  color: var(--danger-soft);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .board.paused .opponents,
@@ -517,9 +473,9 @@ input:focus-visible {
 }
 
 .message.pause {
-  background: color-mix(in srgb, var(--gold) 12%, transparent);
-  border-color: color-mix(in srgb, var(--gold) 40%, transparent);
-  color: var(--gold-soft);
+  background: var(--overlay-mid);
+  border-color: var(--line);
+  color: var(--ink);
 }
 
 .table-message {
@@ -530,11 +486,15 @@ input:focus-visible {
   text-align: center;
 }
 
+/* base .message reads as an alert (inverted fill) — the palette forbids
+   red, so "this needs attention" comes from contrast/inversion instead of
+   color-coding. .pause softens that to a neutral tint; .win flips it to a
+   solid accent fill — three clearly distinct treatments, still on-palette. */
 .message {
   padding: 0.6rem 0.9rem;
-  background: color-mix(in srgb, var(--danger) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
-  color: var(--danger-soft);
+  background: var(--ink);
+  border: 2px solid var(--ink);
+  color: var(--panel);
   border-radius: var(--radius-sm);
   font-size: 0.88rem;
   display: inline-block;
@@ -542,9 +502,9 @@ input:focus-visible {
 }
 
 .message.win {
-  background: color-mix(in srgb, var(--win) 15%, transparent);
-  border-color: color-mix(in srgb, var(--win) 40%, transparent);
-  color: var(--win-soft);
+  background: var(--accent);
+  border-color: var(--line);
+  color: var(--ink);
 }
 
 .hand-card {
@@ -580,8 +540,7 @@ input:focus-visible {
   height: 6rem;
   border-radius: var(--radius-sm);
   background: var(--card-face);
-  border: 1px solid var(--card-border-subtle);
-  box-shadow: 0 4px 10px var(--card-shadow-strong);
+  border: 2px solid var(--line);
   font-family: var(--font-display);
   font-size: 1.7rem;
   font-weight: 700;
@@ -589,8 +548,8 @@ input:focus-visible {
 }
 
 .seat-card.joined {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 45%, transparent), 0 4px 10px var(--card-shadow-strong);
+  border-color: var(--accent);
+  border-width: 3px;
 }
 
 .power-badge {
@@ -602,9 +561,9 @@ input:focus-visible {
   font-family: var(--font-body);
   font-size: 0.58rem;
   font-weight: 700;
-  color: var(--wood);
-  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
-  border-radius: 999px;
+  color: var(--ink);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
   padding: 0.1rem 0.4rem;
 }
 
@@ -620,11 +579,11 @@ input:focus-visible {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--wood);
-  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
-  border-radius: 999px;
+  color: var(--ink);
+  background: var(--accent);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
   padding: 0.2rem 0.7rem;
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--gold) 50%, transparent);
   animation: turn-flag-pulse 1.4s ease-in-out infinite;
 }
 
@@ -654,20 +613,22 @@ input:focus-visible {
   align-items: center;
   gap: 0.3rem;
   min-width: 7rem;
-  background: linear-gradient(160deg, var(--wood-light), var(--wood));
-  border: 1px solid var(--line);
+  background: var(--panel);
+  border: 2px solid var(--line);
   border-radius: var(--radius-md);
   padding: 0.7rem 0.9rem;
   text-align: center;
-  transition: box-shadow 150ms ease;
+  transition: border-color 150ms ease;
 }
 
 .opponent.current {
-  box-shadow: 0 0 0 2px var(--gold), 0 8px 20px -10px color-mix(in srgb, var(--gold) 55%, transparent);
+  border-color: var(--accent);
+  border-width: 3px;
 }
 
 .opponent.winner {
-  box-shadow: 0 0 0 2px var(--win), 0 8px 20px -10px color-mix(in srgb, var(--win) 50%, transparent);
+  border-color: var(--ink);
+  border-width: 3px;
 }
 
 .opponent-name {
@@ -675,7 +636,7 @@ input:focus-visible {
   align-items: center;
   gap: 0.35rem;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
 }
 
@@ -695,12 +656,12 @@ input:focus-visible {
   border-radius: 3px;
   background: repeating-linear-gradient(
     135deg,
-    var(--wood-light),
-    var(--wood-light) 2px,
-    var(--gold) 2px,
-    var(--gold) 3px
+    var(--card-face),
+    var(--card-face) 2px,
+    var(--accent) 2px,
+    var(--accent) 3px
   );
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
 }
 
 /* the actual card count, drawn as that many card backs instead of just a
@@ -743,10 +704,10 @@ input:focus-visible {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1rem;
-  color: var(--gold-soft);
+  color: var(--ink);
   background: var(--overlay-mid);
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
   padding: 0.3rem 0.9rem;
   white-space: nowrap;
 }
@@ -764,7 +725,7 @@ input:focus-visible {
 }
 
 .winner-list li:first-child {
-  color: var(--gold-soft);
+  color: var(--ink);
   font-weight: 700;
 }
 
@@ -785,13 +746,13 @@ input:focus-visible {
   position: absolute;
   inset: 0;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   background: repeating-linear-gradient(
     135deg,
-    var(--wood-light),
-    var(--wood-light) 4px,
-    var(--wood) 4px,
-    var(--wood) 8px
+    var(--card-face),
+    var(--card-face) 4px,
+    var(--panel) 4px,
+    var(--panel) 8px
   );
 }
 
@@ -807,7 +768,7 @@ input:focus-visible {
   width: 2.6rem;
   height: 3.6rem;
   border-radius: var(--radius-sm);
-  border: 1px dashed var(--line);
+  border: 2px dashed var(--line);
   color: var(--text-dim);
   font-size: 0.85rem;
 }
@@ -823,8 +784,7 @@ input:focus-visible {
   height: 3.6rem;
   border-radius: var(--radius-sm);
   background: var(--card-face);
-  border: 1px solid var(--card-border-subtle);
-  box-shadow: 0 4px 10px var(--card-shadow-strong);
+  border: 2px solid var(--line);
   font-family: var(--font-display);
   font-size: 1.15rem;
   font-weight: 700;
@@ -838,20 +798,19 @@ input:focus-visible {
 
 .shout-alliance-btn {
   cursor: pointer;
-  border: 1px solid var(--gold);
+  border: 2px solid var(--line);
   background: transparent;
-  color: var(--gold-soft);
+  color: var(--ink);
   font-family: var(--font-body);
   font-weight: 700;
   font-size: 0.78rem;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   padding: 0.3rem 0.7rem;
-  transition: transform 120ms ease, background 120ms ease;
+  transition: transform 100ms ease;
 }
 
 .shout-alliance-btn:hover {
-  background: color-mix(in srgb, var(--gold) 15%, transparent);
-  transform: translateY(-1px) scale(1.04);
+  background: var(--overlay-soft);
 }
 
 .shout-alliance-btn:active {
@@ -873,8 +832,9 @@ input:focus-visible {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(2rem, 10vw, 4rem);
-  color: var(--gold-soft);
-  text-shadow: 0 0 24px color-mix(in srgb, var(--gold) 70%, transparent), 0 4px 16px rgba(0, 0, 0, 0.5);
+  color: var(--ink);
+  /* hard-edged offset, not a blurred glow — stays inside the "no glow" rule */
+  text-shadow: 3px 3px 0 var(--accent);
   animation: alliance-banner-pop 1.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -913,8 +873,7 @@ input:focus-visible {
   justify-content: center;
   border-radius: var(--radius-sm);
   background: var(--card-face);
-  border: 1px solid var(--card-border-subtle);
-  box-shadow: 0 6px 14px var(--card-shadow-strong);
+  border: 2px solid var(--line);
   font-family: var(--font-display);
   font-size: 1.15rem;
   font-weight: 700;
@@ -927,19 +886,21 @@ input:focus-visible {
 
 .my-hand {
   position: relative;
-  background: linear-gradient(160deg, var(--wood-light), var(--wood));
-  border: 1px solid var(--line);
+  background: var(--panel);
+  border: 2px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 1.4rem;
-  transition: box-shadow 150ms ease;
+  transition: border-color 150ms ease;
 }
 
 .my-hand.current {
-  box-shadow: 0 0 0 2px var(--gold), 0 14px 32px -14px color-mix(in srgb, var(--gold) 55%, transparent);
+  border-color: var(--accent);
+  border-width: 3px;
 }
 
 .my-hand.winner {
-  box-shadow: 0 0 0 2px var(--win), 0 14px 32px -14px color-mix(in srgb, var(--win) 50%, transparent);
+  border-color: var(--ink);
+  border-width: 3px;
 }
 
 .my-hand-header {
@@ -948,9 +909,10 @@ input:focus-visible {
   flex-wrap: wrap;
   gap: 0.5rem;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1.05rem;
   margin-bottom: 0.9rem;
+  color: var(--ink);
 }
 
 .sort-toggle {
@@ -966,17 +928,17 @@ input:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 0.2rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
 }
 
 .badge-turn {
-  background: color-mix(in srgb, var(--gold) 20%, transparent);
-  color: var(--gold-soft);
+  background: var(--overlay-mid);
+  color: var(--ink);
 }
 
 .badge-win {
-  background: color-mix(in srgb, var(--win) 20%, transparent);
-  color: var(--win-soft);
+  background: var(--accent);
+  color: var(--ink);
 }
 
 .badge-you {
@@ -996,12 +958,11 @@ input:focus-visible {
   cursor: pointer;
   background: var(--card-face);
   color: var(--card-ink);
-  border: 1px solid var(--card-border-subtle);
+  border: 2px solid var(--line);
   font-family: var(--font-display);
   font-size: clamp(0.85rem, 6vw, 1.5rem);
   font-weight: 700;
-  box-shadow: 0 3px 8px var(--card-shadow);
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition: transform 120ms ease;
 }
 
 /* .is-new is render-driven (state.newCardId) and survives every re-render
@@ -1017,9 +978,9 @@ input:focus-visible {
   font-size: 0.55rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: var(--wood);
-  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
-  border-radius: 999px;
+  color: var(--ink);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
   padding: 0.1rem 0.35rem;
 }
 
@@ -1029,23 +990,19 @@ input:focus-visible {
 }
 
 .hand-card:not(:disabled):hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 20px -6px color-mix(in srgb, var(--gold) 50%, transparent);
+  transform: translateY(-3px);
 }
 
 .hand-card.just-drawn {
-  animation: just-drawn-glow 1.1s ease;
+  animation: just-drawn-pop 500ms ease;
 }
 
-@keyframes just-drawn-glow {
+@keyframes just-drawn-pop {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent);
-  }
-  45% {
-    box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold) 0%, transparent);
+    transform: scale(1.25);
   }
   100% {
-    box-shadow: 0 3px 8px var(--card-shadow);
+    transform: scale(1);
   }
 }
 
@@ -1058,17 +1015,17 @@ input:focus-visible {
   cursor: pointer;
   margin-top: 0.7rem;
   background: transparent;
-  border: 1px solid var(--gold);
-  color: var(--gold-soft);
+  border: 2px solid var(--line);
+  color: var(--ink);
   font-weight: 700;
   font-size: 0.85rem;
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.9rem;
-  transition: background 140ms ease;
+  transition: background-color 120ms ease;
 }
 
 .pass-btn:hover {
-  background: color-mix(in srgb, var(--gold) 12%, transparent);
+  background: var(--overlay-soft);
 }
 
 .admin-link {
@@ -1078,7 +1035,7 @@ input:focus-visible {
 }
 
 .admin-link:hover {
-  color: var(--gold-soft);
+  color: var(--ink);
 }
 
 /* ---------- admin panel ---------- */
@@ -1087,10 +1044,9 @@ input:focus-visible {
   max-width: 480px;
   margin: 3rem auto;
   padding: 2rem;
-  background: linear-gradient(165deg, var(--wood-light), var(--wood));
-  border: 1px solid var(--line);
+  background: var(--panel);
+  border: 2px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-panel);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1098,7 +1054,7 @@ input:focus-visible {
 
 .admin-panel #admin-exit-btn {
   cursor: pointer;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: 0.95rem;
   font-weight: 700;
@@ -1122,21 +1078,21 @@ input:focus-visible {
   padding: 0.65rem 0.8rem;
   font-size: 0.95rem;
   font-family: var(--font-display);
-  background: var(--overlay-mid);
-  border: 1px solid var(--line);
+  background: var(--card-face);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--text);
 }
 
 .code-form #new-code-btn {
   cursor: pointer;
-  border: none;
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: 0.95rem;
   font-weight: 700;
   padding: 0.7rem 1.1rem;
-  background: linear-gradient(160deg, var(--gold-soft), var(--gold));
-  color: var(--wood);
+  background: var(--accent);
+  color: var(--ink);
   white-space: nowrap;
 }
 
@@ -1166,7 +1122,7 @@ input:focus-visible {
   align-items: center;
   gap: 0.6rem;
   background: var(--overlay-soft);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.7rem;
 }
@@ -1181,7 +1137,7 @@ input:focus-visible {
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--gold-soft);
+  color: var(--ink);
 }
 
 .code-nickname {
@@ -1197,17 +1153,18 @@ input:focus-visible {
 
 .revoke-btn {
   cursor: pointer;
-  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  border: 2px solid var(--line);
   background: transparent;
-  color: var(--danger-soft);
+  color: var(--ink);
   border-radius: var(--radius-sm);
   padding: 0.3rem 0.6rem;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
+  transition: background-color 120ms ease;
 }
 
 .revoke-btn:hover {
-  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  background: var(--overlay-soft);
 }
 
 /* narrow phones: a wrapped, off-center grid of opponent seats and a hand
@@ -1232,13 +1189,13 @@ input:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .setup button,
-  .hand-card,
-  .pass-btn,
+  .ctrl-btn,
   .opponent,
   .my-hand,
+  .hand-card,
   .shout-alliance-btn,
-  .ctrl-btn {
+  .pass-btn,
+  .revoke-btn {
     transition: none;
   }
   .hand-card:not(:disabled):hover {

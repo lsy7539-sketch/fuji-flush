@@ -6,11 +6,8 @@ import { renderMainMenu } from "./mainMenu";
 import { startNetworkMode } from "./networkMode";
 import { renderRulebook } from "./rulebook";
 import { getSpeed, setSpeed, type Speed } from "./speed";
-import { initTheme } from "./theme";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
-
-initTheme();
 
 function boot(): void {
   document.body.classList.remove("pixel-menu-screen");
