@@ -1366,6 +1366,109 @@ input:focus-visible {
   background: var(--overlay-soft);
 }
 
+/* ---------- profile: friend list ---------- */
+
+.friend-add-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.friend-add-row input {
+  flex: 1;
+  min-width: 100px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  background: var(--card-face);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+#friend-add-btn {
+  cursor: pointer;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.7rem 1.1rem;
+  background: var(--accent);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.friend-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.friend-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  background: var(--overlay-soft);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.7rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.friend-list .friend-empty {
+  justify-content: center;
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.friend-remove-btn {
+  cursor: pointer;
+  border: 2px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: background-color 120ms ease;
+}
+
+.friend-remove-btn:hover {
+  background: var(--overlay-soft);
+}
+
+/* ---------- local setup: friend picker ---------- */
+
+.friend-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.friend-chip {
+  cursor: pointer;
+  padding: 0.45rem 0.8rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+}
+
+.friend-chip.active {
+  background: var(--accent);
+  color: var(--ink);
+}
+
 /* narrow phones: a wrapped, off-center grid of opponent seats and a hand
    that spills onto a second row both read as clutter — line each up into
    one row instead. Every opponent shares the row equally (flex: 1 1 0) and

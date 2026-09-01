@@ -12,16 +12,21 @@ const HUMAN_ID = "human";
 const BOT_NAME_POOL = ["카리나", "안유진", "장원영", "수지", "윈터", "미나미", "원이"];
 
 /**
+ * @param friendNames - names picked in the setup screen's friend picker, to
+ *   use for the first however-many AI seats instead of the random idol pool
+ *   (main.ts caps this at playerCount - 1 already, but buildPlayerDefs below
+ *   re-caps it too so this function doesn't depend on that).
  * @param onBack - "뒤로가기": re-pick the player count (no confirmation, low stakes).
  * @param onHome - "✕": leave to the single/multi mode-select screen (confirmed first).
  */
 export function startLocalMode(
   app: HTMLElement,
   playerCount: number,
+  friendNames: string[],
   onBack: () => void,
   onHome: () => void,
 ): void {
-  let state: GameState = createGame(buildPlayerDefs(playerCount));
+  let state: GameState = createGame(buildPlayerDefs(playerCount, friendNames));
   let message = "";
   let paused = false;
   // The viewer's own most recently drawn card, so the hand can mark it — set
@@ -288,8 +293,14 @@ export function describeMove(
   return { message: parts.join(" "), notable };
 }
 
-function buildPlayerDefs(playerCount: number): { id: string; name: string }[] {
-  const botNames = shuffle(BOT_NAME_POOL);
+// Picked friends fill the AI seats first; whatever's left over (including
+// all of them, if no friends were picked) falls back to the random idol
+// pool exactly as before.
+function buildPlayerDefs(playerCount: number, friendNames: string[]): { id: string; name: string }[] {
+  const seatCount = playerCount - 1;
+  const chosenFriends = friendNames.slice(0, seatCount);
+  const idolNames = shuffle(BOT_NAME_POOL).slice(0, seatCount - chosenFriends.length);
+  const botNames = [...chosenFriends, ...idolNames];
   const defs = [{ id: HUMAN_ID, name: "나" }];
   for (let i = 1; i < playerCount; i++) {
     defs.push({ id: `bot-${i}`, name: botNames[i - 1] ?? `AI ${i}` });

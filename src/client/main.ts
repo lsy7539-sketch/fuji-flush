@@ -1,5 +1,6 @@
 import "./style.css";
 import { startAdminMode } from "./adminMode";
+import { getFriends } from "./friends";
 import { startLocalMode } from "./localMode";
 import { isAdminCodeSession, isAuthed, renderLoginGate } from "./loginGate";
 import { renderMainMenu } from "./mainMenu";
@@ -10,10 +11,12 @@ import { getSpeed, setSpeed, type Speed } from "./speed";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
-// Lives outside renderLocalSetup so it survives that screen's own re-renders
-// (speed toggle, +/- stepper) — only reset to 4 when freshly entering the
-// screen from the main menu (see renderModeSelect's onLocal below).
+// Both live outside renderLocalSetup so they survive that screen's own
+// re-renders (speed toggle, +/- stepper, friend picks) — only reset when
+// freshly entering the screen from the main menu (see renderModeSelect's
+// onLocal below).
 let localPlayerCount = 4;
+let selectedFriendNames: string[] = [];
 
 function boot(): void {
   document.body.classList.remove("pixel-menu-screen");
@@ -47,6 +50,7 @@ function renderModeSelect(): void {
     onLocal: () => {
       document.body.classList.remove("pixel-menu-screen");
       localPlayerCount = 4;
+      selectedFriendNames = [];
       renderLocalSetup();
     },
     onNetwork: () => {
@@ -72,6 +76,14 @@ function renderLocalSetup(): void {
   container.className = "setup";
   const speed = getSpeed();
   const speedLabels: Record<Speed, string> = { slow: "느리게", normal: "보통", fast: "빠르게" };
+  const friends = getFriends();
+  // At most (인원 수 - 1) AI seats exist to fill — if a player count
+  // decrease drops below however many friends were already picked, trim
+  // the picks down to match rather than leaving an inconsistent selection.
+  const maxFriendPicks = localPlayerCount - 1;
+  if (selectedFriendNames.length > maxFriendPicks) {
+    selectedFriendNames = selectedFriendNames.slice(0, maxFriendPicks);
+  }
   container.innerHTML = `
     <h1>Fuji Flush · 혼자하기</h1>
     <label>전체 인원 수 (나 + AI, 3~8명)</label>
@@ -80,6 +92,21 @@ function renderLocalSetup(): void {
       <span class="stepper-value">${localPlayerCount}</span>
       <button type="button" id="player-count-plus" aria-label="인원 수 증가" ${localPlayerCount >= 8 ? "disabled" : ""}>+</button>
     </div>
+    ${
+      friends.length > 0
+        ? `
+      <label>함께할 친구 선택 (안 고르면 기존처럼 무작위 이름)</label>
+      <div class="friend-picker" role="group" aria-label="함께할 친구 선택">
+        ${friends
+          .map((name) => {
+            const active = selectedFriendNames.includes(name);
+            const disabled = !active && selectedFriendNames.length >= maxFriendPicks;
+            return `<button type="button" class="friend-chip${active ? " active" : ""}" data-friend-name="${name}" ${disabled ? "disabled" : ""}>${name}</button>`;
+          })
+          .join("")}
+      </div>`
+        : ""
+    }
     <label>게임 진행 속도</label>
     <div class="toggle-group" role="group" aria-label="게임 진행 속도">
       ${(["slow", "normal", "fast"] as Speed[])
@@ -100,6 +127,15 @@ function renderLocalSetup(): void {
       renderLocalSetup();
     });
   });
+  container.querySelectorAll<HTMLButtonElement>(".friend-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const name = btn.dataset.friendName!;
+      selectedFriendNames = selectedFriendNames.includes(name)
+        ? selectedFriendNames.filter((n) => n !== name)
+        : [...selectedFriendNames, name];
+      renderLocalSetup();
+    });
+  });
   container.querySelector("#player-count-minus")!.addEventListener("click", () => {
     localPlayerCount = Math.max(3, localPlayerCount - 1);
     renderLocalSetup();
@@ -111,7 +147,7 @@ function renderLocalSetup(): void {
   container.querySelector("#start-btn")!.addEventListener("click", () => {
     // "뒤로가기" during the game re-opens this same setup screen; "✕" goes
     // all the way home to mode-select.
-    startLocalMode(app, localPlayerCount, renderLocalSetup, renderModeSelect);
+    startLocalMode(app, localPlayerCount, selectedFriendNames, renderLocalSetup, renderModeSelect);
   });
   container.querySelector("#back-btn")!.addEventListener("click", renderModeSelect);
 }
