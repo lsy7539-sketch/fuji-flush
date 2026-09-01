@@ -1279,8 +1279,11 @@ input:focus-visible {
 
   /* no bundled pixel font in this project and the spec forbids pulling in a
      new external one — a tight-tracked monospace stack is the closest
-     retro-handheld feel available without adding an asset. */
-  --ff-font: ui-monospace, "SFMono-Regular", "Courier New", Consolas, Menlo, monospace;
+     retro-handheld feel available without adding an asset. "Noto Sans KR" is
+     already loaded by index.html for the rest of the app (not a new fetch);
+     it's listed here only as the fallback for the Korean menu labels, since
+     none of the monospace faces carry Hangul glyphs. */
+  --ff-font: ui-monospace, "SFMono-Regular", "Courier New", Consolas, Menlo, "Noto Sans KR", monospace;
 
   position: relative;
   width: 100%;

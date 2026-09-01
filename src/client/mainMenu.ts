@@ -69,17 +69,19 @@ function arrowIconSvg(): string {
 }
 
 function mountainIconSvg(): string {
-  // stepped pixel silhouette of Mt. Fuji, 3 colors + snow exception
-  const outline =
-    "44,6 48,6 48,12 54,12 54,18 60,18 60,24 66,24 66,30 74,30 74,54 18,54 18,30 26,30 26,24 32,24 32,18 38,18 38,12 44,12";
+  // stepped pixel silhouette of Mt. Fuji — wide, gentle slope (previous
+  // version had a narrow 4px apex and one oversized final drop, which read
+  // as a tower/cross rather than a mountain). 3 even stairs per side, snow
+  // as a flat cap block + two short "shoulder" dips instead of a
+  // spike-plus-band cross shape.
+  const outline = "38,12 54,12 54,26 65,26 65,40 76,40 76,54 86,54 6,54 16,54 16,40 27,40 27,26 38,26";
   return `
 <svg class="ff-mountain-svg" viewBox="0 0 92 54" width="92" height="54" role="img" aria-label="후지산" style="shape-rendering:crispEdges">
   <polygon points="${outline}" fill="#315B45" stroke="#183A29" stroke-width="2" stroke-linejoin="miter" />
-  <rect x="54" y="18" width="6" height="6" fill="#A8C95A" />
-  <rect x="60" y="24" width="6" height="6" fill="#A8C95A" />
-  <rect x="44" y="6" width="4" height="8" fill="#F7F8E8" />
-  <rect x="40" y="12" width="12" height="4" fill="#F7F8E8" />
-  <rect x="44" y="16" width="4" height="2" fill="#F7F8E8" />
+  <rect x="65" y="40" width="11" height="8" fill="#A8C95A" />
+  <rect x="38" y="12" width="16" height="14" fill="#F7F8E8" />
+  <rect x="27" y="26" width="11" height="6" fill="#F7F8E8" />
+  <rect x="54" y="26" width="11" height="6" fill="#F7F8E8" />
 </svg>`;
 }
 
