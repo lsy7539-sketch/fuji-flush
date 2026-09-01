@@ -581,12 +581,19 @@ export function describeMoveForBeginner(
     if (!a.alliance && a.flushed.length === 0 && a.blockers.length > 0) {
       // Nothing happened — but a beginner watching a string of "냈어요."
       // with no consequence could easily read that as "you must always
-      // play higher," so spell out that a lower (or equal) card is a
-      // perfectly normal, safe move.
+      // play higher," so spell out why. The follow-up suggestion ("낮은
+      // 카드를 내서... 연합하는 것도 방법이에요") is 2nd-person strategy
+      // advice, though — it only makes sense when it's the *viewer's* own
+      // move being described. Tacking it onto a bot's turn read like advice
+      // about a decision the viewer wasn't even the one making.
       const blockerDesc = a.blockers
         .map((b) => (b.joined ? `${b.names.join(", ")}의 ${b.value} 연합(POWER ${b.totalValue})` : `${b.names[0]}의 ${b.value}`))
         .join(", ");
-      parts.push(`${blockerDesc}이(가) 더 높거나 같아서, 아무 카드도 밀려나지 않았어요! 낮은 카드를 내서 다른 사람과 연합하는 것도 방법이에요.`);
+      let sentence = `${blockerDesc}이(가) 더 높거나 같아서, 아무 카드도 밀려나지 않았어요!`;
+      if (playerId === HUMAN_ID) {
+        sentence += " 낮은 카드를 내서 다른 사람과 연합하는 것도 방법이에요.";
+      }
+      parts.push(sentence);
       notable = true;
     }
   }
