@@ -3,6 +3,7 @@ import { showConfirm } from "./confirmDialog";
 import { getAllianceText, getNickname } from "./loginGate";
 import type { ClientMessage, LobbyPlayer, ServerMessage } from "../shared/protocol";
 import { renderBoard, showAllianceBanner } from "./render";
+import { refreshIconSvg } from "./icons";
 
 type Screen = "chooser" | "lobby" | "game";
 
@@ -200,12 +201,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       <p>닉네임: <b>${getNickname()}</b></p>
       <label for="room-name">방 이름 (선택)</label>
       <input type="text" id="room-name" placeholder="예: 금요일 밤 후지플러시" />
-      <label for="room-code-input">방 코드 (선택, 비우면 자동 생성)</label>
-      <input type="text" id="room-code-input" placeholder="원하는 코드" />
       <button id="create-btn">방 만들기</button>
       <div class="open-rooms-header">
         <label>참가할 수 있는 방</label>
-        <button type="button" id="rooms-refresh-btn" class="edit-nickname-btn">새로고침</button>
+        <button type="button" id="rooms-refresh-btn" class="icon-refresh-btn" aria-label="새로고침" title="새로고침">${refreshIconSvg()}</button>
       </div>
       <ul class="code-list">${roomListHtml}</ul>
       <button id="back-btn" class="back-btn-compact">← 뒤로</button>
@@ -214,15 +213,11 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
 
     container.querySelector("#create-btn")!.addEventListener("click", () => {
       const customRoomName = container.querySelector<HTMLInputElement>("#room-name")!.value.trim();
-      const customRoomCode = container
-        .querySelector<HTMLInputElement>("#room-code-input")!
-        .value.trim();
       ensureSocket(() =>
         send({
           type: "createRoom",
           playerName: getNickname(),
           roomName: customRoomName || undefined,
-          roomCode: customRoomCode || undefined,
         }),
       );
     });
@@ -241,8 +236,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     const canStart = isHost && lobbyPlayers.length >= 3;
     container.innerHTML = `
       <h1>${roomName || "대기실"}</h1>
-      <div class="room-code">코드: ${roomCode}</div>
-      <p>이 코드나 초대 링크를 친구에게 공유하세요 (3~8명 필요)</p>
+      <p>친구는 같이하기 화면에서 이 방을 찾아 바로 참가할 수 있어요 — 초대 링크로 보내도 돼요 (3~8명 필요)</p>
       ${errorMessage ? `<div class="message">${errorMessage}</div>` : ""}
       <button id="invite-btn">초대 링크 복사</button>
       <ul class="lobby-players">
