@@ -2,16 +2,18 @@ import "./style.css";
 import { startAdminMode } from "./adminMode";
 import { startLocalMode } from "./localMode";
 import { isAdminCodeSession, isAuthed, renderLoginGate } from "./loginGate";
+import { renderMainMenu } from "./mainMenu";
 import { startNetworkMode } from "./networkMode";
 import { renderRulebook } from "./rulebook";
 import { getSpeed, setSpeed, type Speed } from "./speed";
-import { getTheme, initTheme, setTheme, type Theme } from "./theme";
+import { initTheme } from "./theme";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 initTheme();
 
 function boot(): void {
+  document.body.classList.remove("pixel-menu-screen");
   if (location.hash === "#admin") {
     startAdminMode(app, () => {
       location.hash = "";
@@ -36,39 +38,28 @@ function boot(): void {
 
 function renderModeSelect(): void {
   app.innerHTML = "";
-  const container = document.createElement("div");
-  container.className = "setup";
-  const theme = getTheme();
-  container.innerHTML = `
-    <h1>Fuji Flush</h1>
-    <div class="toggle-group" role="group" aria-label="테마 선택">
-      <button class="toggle-btn${theme === "casino" ? " active" : ""}" data-theme-option="casino">카지노</button>
-      <button class="toggle-btn${theme === "simple" ? " active" : ""}" data-theme-option="simple">심플</button>
-    </div>
-    <button id="mode-local">혼자하기 (AI 상대)</button>
-    <button id="mode-network">온라인 멀티플레이</button>
-    <button id="mode-rulebook">룰북</button>
-    ${isAdminCodeSession() ? `<a class="admin-link" href="#admin">관리자 모드</a>` : ""}
-  `;
-  app.appendChild(container);
-
-  container.querySelectorAll<HTMLButtonElement>(".toggle-btn[data-theme-option]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setTheme(btn.dataset.themeOption as Theme);
-      renderModeSelect();
-    });
+  document.body.classList.remove("center-screen");
+  document.body.classList.add("pixel-menu-screen");
+  renderMainMenu(app, {
+    onLocal: () => {
+      document.body.classList.remove("pixel-menu-screen");
+      renderLocalSetup();
+    },
+    onNetwork: () => {
+      document.body.classList.remove("pixel-menu-screen");
+      startNetworkMode(app, renderModeSelect);
+    },
+    onRulebook: () => {
+      document.body.classList.remove("pixel-menu-screen");
+      renderRulebook(app, renderModeSelect);
+    },
+    showAdminLink: isAdminCodeSession(),
   });
-  container.querySelector("#mode-local")!.addEventListener("click", renderLocalSetup);
-  container
-    .querySelector("#mode-network")!
-    .addEventListener("click", () => startNetworkMode(app, renderModeSelect));
-  container
-    .querySelector("#mode-rulebook")!
-    .addEventListener("click", () => renderRulebook(app, renderModeSelect));
 }
 
 function renderLocalSetup(): void {
   app.innerHTML = "";
+  document.body.classList.remove("pixel-menu-screen");
   const container = document.createElement("div");
   container.className = "setup";
   const speed = getSpeed();

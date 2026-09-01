@@ -107,6 +107,14 @@ body.center-screen #app {
   width: 100%;
 }
 
+/* toggled only for the main menu (main.ts) — that screen is a full-bleed
+   390x780-style frame with its own background/tokens, so it needs the
+   body's default dark padding/gradient out of the way. */
+body.pixel-menu-screen {
+  padding: 0;
+  background: #edf0cb;
+}
+
 h1 {
   margin: 0;
   font-family: var(--font-display);
@@ -1240,5 +1248,201 @@ input:focus-visible {
   .turn-flag,
   .alliance-banner-text {
     animation: none;
+  }
+}
+
+/* ---------- main menu (pixel / handheld) ---------- */
+
+.ff-menu {
+  --ff-bg: #edf0cb;
+  --ff-dark: #183a29;
+  --ff-green: #315b45;
+  --ff-point: #a8c95a;
+
+  --ff-logo-size: 30px;
+  --ff-menu-size: 20px;
+
+  --ff-menu-width: 240px;
+  --ff-selected-height: 58px;
+  --ff-normal-height: 44px;
+
+  --ff-border-width: 2px;
+  --ff-radius: 8px;
+
+  --ff-mountain-width: 92px;
+  --ff-mountain-height: 54px;
+
+  --ff-divider-width: 192px;
+  --ff-divider-height: 4px;
+
+  --ff-grass-height: 48px;
+
+  /* no bundled pixel font in this project and the spec forbids pulling in a
+     new external one — a tight-tracked monospace stack is the closest
+     retro-handheld feel available without adding an asset. */
+  --ff-font: ui-monospace, "SFMono-Regular", "Courier New", Consolas, Menlo, monospace;
+
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: max(780px, 100dvh);
+  background: var(--ff-bg);
+  overflow: hidden;
+  font-family: var(--ff-font);
+}
+
+.ff-menu-frame {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  height: 100%;
+  margin: 0 auto;
+}
+
+.ff-mountain {
+  position: absolute;
+  top: 134px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--ff-mountain-width);
+  height: var(--ff-mountain-height);
+}
+
+.ff-mountain-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ff-logo {
+  position: absolute;
+  top: 210px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  height: 48px;
+  font-family: var(--ff-font);
+  font-size: var(--ff-logo-size);
+  font-weight: 700;
+  line-height: 36px;
+  letter-spacing: 2px;
+  color: var(--ff-dark);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ff-divider {
+  position: absolute;
+  top: 274px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--ff-divider-width);
+  height: var(--ff-divider-height);
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--ff-dark) 0,
+    var(--ff-dark) 3px,
+    transparent 3px,
+    transparent 12px
+  );
+}
+
+.ff-menu-list {
+  position: absolute;
+  top: 324px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(var(--ff-menu-width), calc(100vw - 64px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.ff-menu-item {
+  width: 100%;
+  height: var(--ff-normal-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--ff-radius);
+  cursor: pointer;
+  font-family: var(--ff-font);
+  font-size: var(--ff-menu-size);
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--ff-dark);
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ff-menu-item.selected {
+  height: var(--ff-selected-height);
+  background: var(--ff-point);
+  border: var(--ff-border-width) solid var(--ff-green);
+}
+
+.ff-menu-item:focus-visible {
+  outline: none;
+}
+
+.ff-menu-arrow {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--ff-dark);
+  flex-shrink: 0;
+}
+
+.ff-menu-item.selected .ff-menu-arrow {
+  display: flex;
+}
+
+.ff-menu-label {
+  flex: none;
+}
+
+.ff-grass {
+  position: absolute;
+  bottom: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(350px, calc(100vw - 40px));
+  height: var(--ff-grass-height);
+}
+
+.ff-grass-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ff-admin-link {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--ff-green);
+  text-decoration: none;
+}
+
+@media (max-width: 319px) {
+  .ff-menu-list {
+    width: min(var(--ff-menu-width), calc(100vw - 48px));
+  }
+  .ff-logo {
+    font-size: 26px;
+  }
+  .ff-mountain {
+    width: 76px;
+    height: 45px;
   }
 }
