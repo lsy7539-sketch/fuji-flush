@@ -429,6 +429,14 @@ input:focus-visible {
   gap: 1.5rem;
 }
 
+/* grows to fill .board's leftover height (see the mobile min-height below);
+   collapses to ~0 when .board is only as tall as its content needs, so this
+   is a no-op outside the mobile layout. */
+.board-spacer {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .header {
   display: flex;
   flex-direction: column;
@@ -1258,6 +1266,11 @@ input:focus-visible {
 
   .board {
     gap: 0.6rem;
+    /* fills the viewport (minus body's own top/bottom padding above) so
+       .board-spacer has real leftover height to distribute — otherwise the
+       spacers have nothing to grow into and everything stays clumped at
+       the top, which is the layout being fixed here. */
+    min-height: calc(100dvh - 1.5rem);
   }
 
   .header-top h1 {
@@ -1278,6 +1291,11 @@ input:focus-visible {
 
   .opponent {
     flex: 1 1 0;
+    /* caps how wide a seat gets with few players — taller-than-wide like
+       the original design, instead of stretching to fill the whole row;
+       flex-shrink still takes over below this once there are enough
+       players that everyone can't fit at this width. */
+    max-width: 6.5rem;
     min-width: 0;
     gap: 0.15rem;
     padding: 0.35rem 0.3rem;

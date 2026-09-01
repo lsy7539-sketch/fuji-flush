@@ -68,6 +68,15 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     container.appendChild(opponentsEl);
   }
 
+  // Flexible spacers (not fixed gaps) around the center-table/message group —
+  // on a tall mobile screen, .board fills the viewport (see CSS) and these
+  // grow to absorb the leftover space, so the draw/discard piles land
+  // centered in the middle instead of clinging to the opponents row, and the
+  // viewer's own hand gets pushed toward the bottom instead of sitting right
+  // underneath. On a short/desktop screen where there's no slack to absorb,
+  // they just collapse to ~0 and change nothing.
+  container.appendChild(Object.assign(document.createElement("div"), { className: "board-spacer" }));
+
   // Draw pile / discard pile sit on the table itself, between everyone's
   // seats and the viewer's own hand — a fixed landmark the draw animation
   // flies cards out of (see #draw-pile in drawAnimation.ts). Whose turn it
@@ -120,6 +129,8 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     `;
     container.appendChild(commentary);
   }
+
+  container.appendChild(Object.assign(document.createElement("div"), { className: "board-spacer" }));
 
   // The viewer's own hand: the one thing that actually gets laid out nicely.
   const viewer = view.players.find((p) => p.id === view.viewerId);
