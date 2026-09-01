@@ -1247,21 +1247,115 @@ input:focus-visible {
    shrinks as more players join, rather than overflowing into a
    horizontally-scrollable strip — the whole point is that nothing on this
    page scrolls sideways, however many players there are. */
+/* Everything below this line is a compaction pass, not just a re-layout:
+   the goal is the whole board fitting one mobile screen with no page
+   scroll at all (vertical or horizontal), worst case (8 players, a full
+   6-card hand) included — not just "less cramped than before". */
 @media (max-width: 520px) {
   body {
-    padding: 1.75rem 0.75rem;
+    padding: 0.75rem 0.6rem;
+  }
+
+  .board {
+    gap: 0.6rem;
+  }
+
+  .header-top h1 {
+    font-size: 1.5rem;
+  }
+
+  .ctrl-btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    font-size: 0.85rem;
   }
 
   .opponents {
     flex-wrap: nowrap;
     justify-content: center;
-    gap: 0.4rem;
+    gap: 0.3rem;
   }
 
   .opponent {
     flex: 1 1 0;
     min-width: 0;
-    padding: 0.6rem 0.4rem;
+    gap: 0.15rem;
+    padding: 0.35rem 0.3rem;
+  }
+
+  .opponent-name {
+    font-size: 0.72rem;
+  }
+
+  .opponent-count {
+    font-size: 0.64rem;
+  }
+
+  .mini-back {
+    width: 0.6rem;
+    height: 0.85rem;
+  }
+
+  .mini-back-fan {
+    min-height: 0.85rem;
+  }
+
+  .seat-cards {
+    min-height: 3.4rem;
+    margin-top: 0.2rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .seat-card {
+    max-width: 2.5rem;
+    font-size: clamp(0.72rem, 4vw, 1.1rem);
+  }
+
+  .power-badge {
+    font-size: 0.48rem;
+  }
+
+  .center-table {
+    gap: 0.7rem;
+  }
+
+  .pile-cards,
+  .pile-empty,
+  .pile-top-card {
+    width: 1.9rem;
+    height: 2.6rem;
+  }
+
+  .pile-top-card {
+    font-size: 0.9rem;
+  }
+
+  .turn-indicator-name {
+    font-size: 0.85rem;
+    padding: 0.2rem 0.6rem;
+  }
+
+  .message {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.78rem;
+  }
+
+  .my-hand {
+    padding: 0.6rem;
+  }
+
+  .my-hand-header {
+    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+  }
+
+  .hand {
+    gap: 0.2rem;
+  }
+
+  .hand-card {
+    flex: 0 1 2.6rem;
+    min-width: 1.8rem;
   }
 }
 
