@@ -223,7 +223,7 @@ export function renderRulebook(app: HTMLElement, onBack: () => void): void {
         ).join("")}
       </div>
     </section>
-    <button id="rulebook-back-btn">뒤로</button>
+    <button id="rulebook-back-btn" class="back-btn-compact">뒤로</button>
   `;
   app.appendChild(container);
 

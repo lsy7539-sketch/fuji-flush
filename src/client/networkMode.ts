@@ -135,7 +135,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       <label for="room-code">참가 코드</label>
       <input type="text" id="room-code" placeholder="코드 입력" value="${prefilledCode}" />
       <button id="join-btn">코드로 참가하기</button>
-      <button id="back-btn">뒤로</button>
+      <button id="back-btn" class="back-btn-compact">뒤로</button>
     `;
     app.appendChild(container);
 
@@ -194,7 +194,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
             }</button>`
           : `<p>방장이 게임을 시작하기를 기다리는 중...</p>`
       }
-      <button id="lobby-back-btn">뒤로</button>
+      <button id="lobby-back-btn" class="back-btn-compact">뒤로</button>
     `;
     app.appendChild(container);
     container

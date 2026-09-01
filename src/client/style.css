@@ -220,11 +220,8 @@ input:focus-visible {
 
 .setup #mode-network,
 .setup #mode-rulebook,
-.setup #rulebook-back-btn,
 .setup #join-btn,
-.setup #back-btn,
-.setup #invite-btn,
-.setup #lobby-back-btn {
+.setup #invite-btn {
   background: var(--panel);
   color: var(--text);
 }
@@ -232,6 +229,19 @@ input:focus-visible {
 .setup button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* every "뒤로" button in a .setup screen — small and left-aligned instead
+   of the same full-width block as the primary action above it, since it's
+   a much lower-priority action than "시작"/"저장"/etc. */
+.setup .back-btn-compact {
+  align-self: flex-start;
+  width: 33%;
+  min-width: 4.5rem;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.8rem;
+  background: var(--panel);
+  color: var(--text);
 }
 
 .rulebook {
@@ -1620,7 +1630,7 @@ input:focus-visible {
 
 .friend-picker-hint {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   color: var(--text-dim);
 }
 

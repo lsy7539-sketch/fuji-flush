@@ -105,7 +105,7 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
       <label for="admin-pw">관리자 비밀번호</label>
       <input type="password" id="admin-pw" autocomplete="off" />
       <button id="admin-login-btn">로그인</button>
-      <button id="admin-back-btn">뒤로</button>
+      <button id="admin-back-btn" class="back-btn-compact">뒤로</button>
     `;
     app.appendChild(container);
 

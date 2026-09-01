@@ -20,7 +20,7 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
     </div>
     <div id="friend-message"></div>
     <ul class="friend-list">${renderFriendList([])}</ul>
-    <button id="back-btn">뒤로</button>
+    <button id="back-btn" class="back-btn-compact">뒤로</button>
   `;
   app.appendChild(container);
 
