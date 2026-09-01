@@ -1862,6 +1862,7 @@ input:focus-visible {
   --ff-dark: #183a29;
   --ff-green: #315b45;
   --ff-point: #a8c95a;
+  --ff-point-soft: #d3e8a6;
 
   --ff-logo-size: 30px;
   --ff-menu-size: 20px;
@@ -2099,7 +2100,7 @@ input:focus-visible {
   font-size: 14px;
   font-weight: 700;
   color: var(--ff-dark);
-  background: var(--ff-point);
+  background: var(--ff-point-soft);
   border: var(--ff-border-width) solid var(--ff-green);
   border-radius: var(--ff-radius);
   padding: 8px 16px;

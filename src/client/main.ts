@@ -155,7 +155,7 @@ function renderLocalSetup(): void {
         .join("")}
     </div>
     <button id="start-btn">게임 시작</button>
-    <button id="back-btn" class="back-btn-compact">뒤로</button>
+    <button id="back-btn" class="back-btn-compact">← 뒤로</button>
   `;
   app.appendChild(container);
 
