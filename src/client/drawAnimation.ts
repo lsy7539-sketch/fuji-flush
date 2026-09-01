@@ -7,8 +7,17 @@ const FLY_DURATION_MS = 550;
  * overlay appended to <body> so it survives the next renderBoard() wiping out
  * the board underneath it. Resolves once the animation has finished and the
  * overlay element has been removed.
+ *
+ * @param speedMultiplier - 1 = normal; e.g. 0.5 doubles the duration, for
+ *   "초보자 전용 게임하기"'s slower flushed-card animation (localMode.ts).
  */
-export function flyCard(value: number, fromEl: HTMLElement, toEl: HTMLElement): Promise<void> {
+export function flyCard(
+  value: number,
+  fromEl: HTMLElement,
+  toEl: HTMLElement,
+  speedMultiplier = 1,
+): Promise<void> {
+  const duration = FLY_DURATION_MS / speedMultiplier;
   const fromRect = fromEl.getBoundingClientRect();
   const toRect = toEl.getBoundingClientRect();
 
@@ -24,14 +33,14 @@ export function flyCard(value: number, fromEl: HTMLElement, toEl: HTMLElement): 
 
   return new Promise((resolve) => {
     requestAnimationFrame(() => {
-      card.style.transition = `transform ${FLY_DURATION_MS}ms ease, opacity ${FLY_DURATION_MS}ms ease`;
+      card.style.transition = `transform ${duration}ms ease, opacity ${duration}ms ease`;
       card.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(0.85)`;
       card.style.opacity = "0.2";
     });
     setTimeout(() => {
       card.remove();
       resolve();
-    }, FLY_DURATION_MS);
+    }, duration);
   });
 }
 

@@ -232,7 +232,7 @@ export function startLocalMode(
       } else if (beginnerMode && !shownBeginnerIntro) {
         shownBeginnerIntro = true;
         message =
-          "👋 차례마다 손패에서 카드 1장을 내요. 더 높은 숫자를 내면 테이블의 낮은 카드를 밀어내고(Flush), 상대는 새 카드를 받아요. 같은 숫자를 내면 서로 연합해서 힘(POWER)을 합쳐요. 손패를 가장 먼저 다 없애면 승리! 카드를 하나 골라볼까요? 🎴";
+          "👋 카드 구성부터 알아둘까요? 숫자가 낮을수록 카드가 많고(2는 16장이나 있어요), 높을수록 적어요 — 16~20은 딱 1장씩뿐이에요. 이 게임은 모두가 손패를 다 낼 때까지 계속되기 때문에, 혼자서는 버거운 큰 수의 카드를 이기려면 같은 숫자끼리 연합해서 힘을 합치는 게 중요해요! 차례마다 손패에서 카드 1장을 내요. 더 높은 숫자를 내면 테이블의 낮은 카드를 밀어내고(Flush), 상대는 새 카드를 받아요. 같은 숫자를 내면 서로 연합해서 힘(POWER)을 합쳐요. 손패를 가장 먼저 다 없애면 승리! 카드를 하나 골라볼까요? 🎴";
         // Logged so 뒤로 can bring it back later, but not gated — actually
         // picking a card is the human's own way of saying "I've read this".
         pushBeginnerLog(message);
@@ -293,9 +293,12 @@ export function startLocalMode(
     const discardPileEl = app.querySelector<HTMLElement>("#discard-pile");
     const flights: Promise<void>[] = [];
     if (discardPileEl) {
+      // A discard flight is always a card getting flushed/pushed out — slow
+      // it down in beginner mode so it's actually visible happening, not
+      // just a blur (draw flights stay normal speed; nothing to explain there).
       for (const e of discardEvents) {
         const fromEl = getSeatEl(e.playerId);
-        if (fromEl) flights.push(flyCard(e.value, fromEl, discardPileEl));
+        if (fromEl) flights.push(flyCard(e.value, fromEl, discardPileEl, beginnerMode ? 0.5 : 1));
       }
     }
     if (drawPileEl) {
@@ -449,6 +452,13 @@ export function describeMove(before: GameState, after: GameState, playerId: stri
   return { message: parts.join(" "), notable };
 }
 
+// "나" (the human player's own name) irregularly contracts with the subject
+// particle to "내가", rather than following the usual 이/가 pattern every
+// other name gets — used only by describeMoveForBeginner below.
+function subjectForm(name: string): string {
+  return name === "나" ? "내가" : `${name}이(가)`;
+}
+
 /**
  * Same underlying event as describeMove, but spelled out for someone who
  * doesn't know the rules yet ("초보자 전용 게임하기") — each case says *why*
@@ -478,7 +488,7 @@ export function describeMoveForBeginner(
   }
 
   if (a.played) {
-    parts.push(`${a.playerName}이(가) ${a.played.value}을(를) 냈어요.`);
+    parts.push(`${subjectForm(a.playerName)} ${a.played.value}을(를) 냈어요.`);
     if (a.alliance) {
       parts.push(
         `🤝 같은 숫자를 낸 ${a.alliance.otherNames.join(", ")}와(과) 연합했어요! 힘을 합치면 POWER는 ${a.played.value} × ${a.alliance.groupSize} = ${a.alliance.power} — 이보다 낮은 카드나 연합은 전부 밀려나요.`,
