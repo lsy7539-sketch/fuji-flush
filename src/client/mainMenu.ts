@@ -10,6 +10,7 @@ interface MainMenuOptions {
   onBeginner: () => void;
   onProfile: () => void;
   showAdminLink: boolean;
+  nickname: string;
 }
 
 export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
@@ -19,7 +20,10 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
   wrap.className = "ff-menu";
   wrap.innerHTML = `
     <div class="ff-menu-frame">
-      <button class="ff-profile-btn" type="button" aria-label="내 정보" title="내 정보">${personIconSvg()}</button>
+      <div class="ff-profile-area">
+        <span class="ff-nickname-label">${opts.nickname}</span>
+        <button class="ff-profile-btn" type="button" aria-label="내 정보" title="내 정보">${personIconSvg()}</button>
+      </div>
       <div class="ff-mountain">${mountainIconSvg()}</div>
       <h1 class="ff-logo">FUJI FLUSH</h1>
       <div class="ff-divider" aria-hidden="true"></div>

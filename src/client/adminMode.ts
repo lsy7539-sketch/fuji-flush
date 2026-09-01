@@ -13,6 +13,8 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
   let codes: AccessCodeRow[] = [];
   let error = "";
   let codeFormError = "";
+  let editingCode: string | null = null;
+  let editNicknameError = "";
 
   async function tryLogin(candidate: string): Promise<void> {
     try {
@@ -75,6 +77,32 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
     render();
   }
 
+  async function updateCodeNickname(code: string, nickname: string): Promise<void> {
+    if (!nickname.trim()) {
+      editNicknameError = "닉네임을 입력해주세요.";
+      render();
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/codes/${encodeURIComponent(code)}/nickname`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({ nickname }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        codes = codes.map((c) => (c.code === code ? { ...c, nickname: data.code.nickname } : c));
+        editingCode = null;
+        editNicknameError = "";
+      } else {
+        editNicknameError = data.message ?? "변경에 실패했습니다.";
+      }
+    } catch {
+      editNicknameError = "서버에 연결할 수 없습니다.";
+    }
+    render();
+  }
+
   async function revoke(code: string): Promise<void> {
     codeFormError = "";
     const res = await fetch(`/api/admin/codes/${encodeURIComponent(code)}`, {
@@ -123,13 +151,23 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
     const container = document.createElement("div");
     container.className = "admin-panel";
     const rows = codes
-      .map(
-        (c) => `
+      .map((c) =>
+        c.code === editingCode
+          ? `
+          <li>
+            <span class="code-value">${c.code}</span>
+            <input type="text" class="edit-nickname-input" data-code="${c.code}" value="${c.nickname}" maxlength="20" autocomplete="off" />
+            <button class="edit-nickname-save-btn" data-code="${c.code}">저장</button>
+            <button class="edit-nickname-cancel-btn">취소</button>
+          </li>
+        `
+          : `
           <li>
             <span class="code-value">${c.code}</span>
             <span class="code-nickname">${c.nickname}</span>
             ${c.isAdmin ? `<span class="badge badge-turn">관리자</span>` : ""}
             <span class="code-date">${new Date(c.createdAt).toLocaleString("ko-KR")}</span>
+            <button class="edit-nickname-btn" data-code="${c.code}">닉네임 수정</button>
             <button class="revoke-btn" data-code="${c.code}">삭제</button>
           </li>
         `,
@@ -150,6 +188,7 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
         <input type="checkbox" id="new-code-is-admin" /> 관리자 코드로 등록
       </label>
       ${codeFormError ? `<div class="message">${codeFormError}</div>` : ""}
+      ${editNicknameError ? `<div class="message">${editNicknameError}</div>` : ""}
       <ul class="code-list">${rows || `<li class="code-empty">아직 등록한 코드가 없습니다.</li>`}</ul>
       <button id="admin-exit-btn">나가기</button>
     `;
@@ -176,6 +215,37 @@ export function startAdminMode(app: HTMLElement, onExit: () => void): void {
     });
     container.querySelectorAll<HTMLButtonElement>(".revoke-btn").forEach((btn) => {
       btn.addEventListener("click", () => revoke(btn.dataset.code!));
+    });
+    container.querySelectorAll<HTMLButtonElement>(".edit-nickname-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        editingCode = btn.dataset.code!;
+        editNicknameError = "";
+        render();
+      });
+    });
+    container.querySelectorAll<HTMLButtonElement>(".edit-nickname-cancel-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        editingCode = null;
+        editNicknameError = "";
+        render();
+      });
+    });
+    container.querySelectorAll<HTMLInputElement>(".edit-nickname-input").forEach((input) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") updateCodeNickname(input.dataset.code!, input.value);
+        if (e.key === "Escape") {
+          editingCode = null;
+          render();
+        }
+      });
+    });
+    container.querySelectorAll<HTMLButtonElement>(".edit-nickname-save-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const input = container.querySelector<HTMLInputElement>(
+          `.edit-nickname-input[data-code="${btn.dataset.code}"]`,
+        )!;
+        updateCodeNickname(btn.dataset.code!, input.value);
+      });
     });
     container.querySelector("#admin-exit-btn")!.addEventListener("click", onExit);
   }

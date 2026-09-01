@@ -184,6 +184,24 @@ app.delete("/api/admin/codes/:code", requireAdmin, async (req, res) => {
   res.json({ ok: await revokeAccessCode(String(req.params.code)) });
 });
 
+// Lets an admin rename any existing code's account — unlike /api/nickname
+// (self-service, authorized by knowing the code itself), this is for fixing
+// up someone else's account and so goes through the same requireAdmin gate
+// as the rest of /api/admin/*.
+app.patch("/api/admin/codes/:code/nickname", requireAdmin, async (req, res) => {
+  const nickname = req.body?.nickname;
+  if (typeof nickname !== "string") {
+    res.status(400).json({ ok: false, message: "잘못된 요청입니다." });
+    return;
+  }
+  try {
+    const updated = await updateNickname(String(req.params.code), nickname);
+    res.json({ ok: true, code: updated });
+  } catch (err) {
+    res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "변경에 실패했습니다." });
+  }
+});
+
 const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 wss.on("connection", handleConnection);

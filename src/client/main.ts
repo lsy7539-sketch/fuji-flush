@@ -2,7 +2,7 @@ import "./style.css";
 import { startAdminMode } from "./adminMode";
 import { getFriends } from "./friends";
 import { startLocalMode } from "./localMode";
-import { isAdminCodeSession, isAuthed, renderLoginGate } from "./loginGate";
+import { getNickname, isAdminCodeSession, isAuthed, renderLoginGate } from "./loginGate";
 import { renderMainMenu } from "./mainMenu";
 import { startNetworkMode } from "./networkMode";
 import { renderProfile } from "./profile";
@@ -101,6 +101,7 @@ function renderModeSelect(): void {
       renderProfile(app, renderModeSelect);
     },
     showAdminLink: isAdminCodeSession(),
+    nickname: getNickname(),
   });
 }
 
