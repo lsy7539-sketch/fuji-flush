@@ -112,7 +112,13 @@ function renderLocalSetup(): void {
   const container = document.createElement("div");
   container.className = "setup";
   const speed = getSpeed();
-  const speedLabels: Record<Speed, string> = { slow: "느리게", normal: "보통", fast: "빠르게" };
+  const speedLabels: Record<Speed, string> = {
+    veryslow: "매우느림",
+    slow: "느림",
+    normal: "보통",
+    fast: "빠름",
+    veryfast: "매우빠름",
+  };
   const friends = cachedFriends;
   // At most (인원 수 - 1) AI seats exist to fill — if a player count
   // decrease drops below however many friends were already picked, trim
@@ -147,7 +153,7 @@ function renderLocalSetup(): void {
     }
     <label>게임 진행 속도</label>
     <div class="toggle-group" role="group" aria-label="게임 진행 속도">
-      ${(["slow", "normal", "fast"] as Speed[])
+      ${(["veryslow", "slow", "normal", "fast", "veryfast"] as Speed[])
         .map(
           (s) =>
             `<button class="toggle-btn${s === speed ? " active" : ""}" data-speed-option="${s}">${speedLabels[s]}</button>`,

@@ -105,7 +105,16 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   // viewer's own hand gets pushed toward the bottom instead of sitting right
   // underneath. On a short/desktop screen where there's no slack to absorb,
   // they just collapse to ~0 and change nothing.
-  container.appendChild(Object.assign(document.createElement("div"), { className: "board-spacer" }));
+  //
+  // board-spacer-inner (this one and its twin below the message) claims a
+  // much smaller share of that leftover space than the outer two — so most
+  // of it goes to pushing the opponents row and the hand away from the
+  // screen edges instead of opening a big gap around center-table, keeping
+  // both of those two closer to the middle rather than clinging to the top
+  // and bottom edges.
+  container.appendChild(
+    Object.assign(document.createElement("div"), { className: "board-spacer board-spacer-inner" }),
+  );
 
   // Draw pile / discard pile sit on the table itself, between everyone's
   // seats and the viewer's own hand — a fixed landmark the draw animation
@@ -171,7 +180,9 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     commentary.querySelector("#beginner-next")?.addEventListener("click", () => callbacks.onBeginnerNext?.());
   }
 
-  container.appendChild(Object.assign(document.createElement("div"), { className: "board-spacer" }));
+  container.appendChild(
+    Object.assign(document.createElement("div"), { className: "board-spacer board-spacer-inner" }),
+  );
 
   // The viewer's own hand: the one thing that actually gets laid out nicely.
   const viewer = view.players.find((p) => p.id === view.viewerId);

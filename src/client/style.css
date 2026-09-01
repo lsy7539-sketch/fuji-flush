@@ -47,6 +47,14 @@
 
 html {
   overflow-x: hidden;
+  /* WebKit's automatic "font boosting" inflates short text blocks beyond
+     their CSS font-size to improve mobile readability — usually harmless,
+     but some in-app webviews (KakaoTalk's included) apply it aggressively
+     enough to blow up something like the alliance banner text to several
+     times its specified size. Disabling it keeps every font-size in this
+     app meaning what it says, everywhere it's opened. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -439,14 +447,19 @@ input:focus-visible {
 
 .toggle-btn {
   flex: 1;
+  /* the speed toggle has 5 of these in a row (see .setup .toggle-group) —
+     without this, flex items default to min-width:auto ("never shrink
+     below the unwrapped text width"), which is exactly the trap that's
+     caused horizontal-overflow bugs elsewhere in this file. */
+  min-width: 0;
   cursor: pointer;
   border: none;
   border-radius: 2px;
   background: transparent;
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  padding: 0.4rem 0.3rem;
+  padding: 0.4rem 0.2rem;
   white-space: nowrap;
 }
 
@@ -497,6 +510,15 @@ input:focus-visible {
 .board-spacer {
   flex: 1 1 0;
   min-height: 0;
+}
+
+/* the two spacers immediately around center-table — a much smaller share
+   of the leftover space than the outer two, so most of it goes to keeping
+   the opponents row and the hand away from the screen edges instead of
+   opening a big gap around the piles; the net effect is both of those
+   sitting closer to the middle instead of clinging to the top/bottom. */
+.board-spacer-inner {
+  flex-grow: 0.25;
 }
 
 .header {
@@ -1207,12 +1229,21 @@ input:focus-visible {
 }
 
 .alliance-banner-text {
+  display: inline-block;
+  /* Korean text wraps between any two characters by default (unlike
+     Latin text, which only wraps at spaces) — at the old much bigger size
+     that meant a narrow phone screen would force "연합!!!" onto 2-3 lines
+     of giant single characters instead of shrinking to fit. Much smaller
+     ceiling now, plus nowrap as a second guard so it always reads as one
+     line even if something upstream (e.g. a webview's own font handling)
+     pushes the size up. */
+  white-space: nowrap;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(2rem, 10vw, 4rem);
+  font-size: clamp(1.1rem, 6vw, 1.7rem);
   color: var(--ink);
   /* hard-edged offset, not a blurred glow — stays inside the "no glow" rule */
-  text-shadow: 3px 3px 0 var(--accent);
+  text-shadow: 2px 2px 0 var(--accent);
   animation: alliance-banner-pop 1.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
