@@ -6,7 +6,7 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
   container.className = "setup";
   container.innerHTML = `
     <h1>내 정보</h1>
-    <label for="nickname-input">닉네임</label>
+    <label for="nickname-input">내 닉네임은</label>
     <input type="text" id="nickname-input" value="${getNickname()}" maxlength="20" autocomplete="off" />
     <div id="profile-message"></div>
     <button id="save-btn">저장</button>
