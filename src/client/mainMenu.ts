@@ -1,7 +1,7 @@
 // Fuji Flush main menu — "90s handheld / Game Boy" pixel screen.
 // Pure SVG/CSS, no external images or fonts. Design frame: 390x780.
 
-type MenuAction = "local" | "network" | "rulebook" | "profile";
+type MenuAction = "local" | "network" | "rulebook";
 
 interface MainMenuOptions {
   onLocal: () => void;
@@ -18,6 +18,7 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
   wrap.className = "ff-menu";
   wrap.innerHTML = `
     <div class="ff-menu-frame">
+      <button class="ff-profile-btn" type="button" aria-label="내 정보" title="내 정보">${personIconSvg()}</button>
       <div class="ff-mountain">${mountainIconSvg()}</div>
       <h1 class="ff-logo">FUJI FLUSH</h1>
       <div class="ff-divider" aria-hidden="true"></div>
@@ -25,7 +26,6 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
         ${menuItemHtml("local", "혼자하기", true)}
         ${menuItemHtml("network", "같이하기", false)}
         ${menuItemHtml("rulebook", "RULE BOOK", false)}
-        ${menuItemHtml("profile", "내 정보", false)}
       </nav>
       <div class="ff-grass" aria-hidden="true">${grassDecorationSvg()}</div>
       ${opts.showAdminLink ? `<a class="ff-admin-link" href="#admin">관리자 모드</a>` : ""}
@@ -41,7 +41,6 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
     local: opts.onLocal,
     network: opts.onNetwork,
     rulebook: opts.onRulebook,
-    profile: opts.onProfile,
   };
 
   items.forEach((item) => {
@@ -51,6 +50,8 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
       actions[item.dataset.action as MenuAction]();
     });
   });
+
+  wrap.querySelector(".ff-profile-btn")!.addEventListener("click", opts.onProfile);
 }
 
 function menuItemHtml(action: MenuAction, label: string, selected: boolean): string {
@@ -69,6 +70,16 @@ function arrowIconSvg(): string {
     .map((w, i) => `<rect x="0" y="${i + 1}" width="${w}" height="1" fill="currentColor" />`)
     .join("");
   return `<svg viewBox="0 0 8 8" width="18" height="18" style="shape-rendering:crispEdges" aria-hidden="true">${bars}</svg>`;
+}
+
+function personIconSvg(): string {
+  // blocky pixel person: square head + widening shoulders/body, 2 colors
+  return `
+<svg viewBox="0 0 10 10" width="18" height="18" style="shape-rendering:crispEdges" aria-hidden="true">
+  <rect x="3" y="0" width="4" height="4" fill="currentColor" />
+  <rect x="2" y="5" width="6" height="1" fill="currentColor" />
+  <rect x="1" y="6" width="8" height="4" fill="currentColor" />
+</svg>`;
 }
 
 function mountainIconSvg(): string {
