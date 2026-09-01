@@ -25,6 +25,14 @@ export interface AccessCode {
   nickname: string;
 }
 
+const MAX_FRIENDS = 30;
+const MAX_FRIEND_NAME_LENGTH = 20;
+
+// Kept off AccessCode itself (the admin listing/registration shape) since
+// nothing there needs it — friends is purely a self-service, per-account
+// list (see the functions below).
+const memoryFriends = new Map<string, string[]>();
+
 export interface AccessCheckResult {
   valid: boolean;
   isAdmin: boolean;
@@ -136,6 +144,63 @@ export async function updateNickname(rawCode: string, nickname: string): Promise
     isAdmin: result.rows[0].is_admin === true,
     nickname: trimmedNickname,
   };
+}
+
+export type FriendMutationResult = "ok" | "empty" | "duplicate" | "limit" | "not-found";
+
+// Names the account holder wants to offer as "혼자하기" AI opponents — tied
+// to the access code (see db.ts) rather than localStorage, so it's the same
+// on every device they log in from. Same self-service trust model as
+// updateNickname above: knowing the code is sufficient authorization.
+export async function getFriendsForCode(rawCode: string): Promise<string[]> {
+  const code = rawCode.trim().toUpperCase();
+  if (!pool) {
+    return memoryFriends.get(code) ?? [];
+  }
+  const result = await pool.query("SELECT friends FROM access_codes WHERE code = $1", [code]);
+  if (result.rows.length === 0) return [];
+  try {
+    const parsed = JSON.parse(result.rows[0].friends ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((n): n is string => typeof n === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveFriendsForCode(code: string, friends: string[]): Promise<boolean> {
+  if (!pool) {
+    if (!memoryCodes.has(code)) return false;
+    memoryFriends.set(code, friends);
+    return true;
+  }
+  const result = await pool.query("UPDATE access_codes SET friends = $1 WHERE code = $2", [
+    JSON.stringify(friends),
+    code,
+  ]);
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function addFriendForCode(
+  rawCode: string,
+  name: string,
+): Promise<{ result: FriendMutationResult; friends: string[] }> {
+  const code = rawCode.trim().toUpperCase();
+  const trimmed = name.trim().slice(0, MAX_FRIEND_NAME_LENGTH);
+  const current = await getFriendsForCode(code);
+  if (!trimmed) return { result: "empty", friends: current };
+  if (current.includes(trimmed)) return { result: "duplicate", friends: current };
+  if (current.length >= MAX_FRIENDS) return { result: "limit", friends: current };
+  const updated = [...current, trimmed];
+  const saved = await saveFriendsForCode(code, updated);
+  return saved ? { result: "ok", friends: updated } : { result: "not-found", friends: current };
+}
+
+export async function removeFriendForCode(rawCode: string, name: string): Promise<string[]> {
+  const code = rawCode.trim().toUpperCase();
+  const current = await getFriendsForCode(code);
+  const updated = current.filter((f) => f !== name);
+  await saveFriendsForCode(code, updated);
+  return updated;
 }
 
 export async function revokeAccessCode(code: string): Promise<boolean> {

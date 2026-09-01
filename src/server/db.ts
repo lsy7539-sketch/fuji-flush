@@ -27,8 +27,13 @@ export async function initDb(): Promise<void> {
     )
   `);
   // Postgres (unlike SQLite) supports this directly, so no try/catch dance
-  // is needed for databases created before `nickname` existed.
+  // is needed for databases created before `nickname`/`friends` existed.
   await pool.query("ALTER TABLE access_codes ADD COLUMN IF NOT EXISTS nickname TEXT NOT NULL DEFAULT ''");
+  // A JSON-encoded string[] of names the account holder wants to offer as
+  // "혼자하기" AI opponent names (see friends.ts) — tied to the access code
+  // itself rather than localStorage, so it's the same on every device they
+  // log in from instead of per-browser.
+  await pool.query("ALTER TABLE access_codes ADD COLUMN IF NOT EXISTS friends TEXT NOT NULL DEFAULT '[]'");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS matches (
       id SERIAL PRIMARY KEY,

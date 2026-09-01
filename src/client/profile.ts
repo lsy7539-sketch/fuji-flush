@@ -1,12 +1,7 @@
 import { addFriend, getFriends, removeFriend } from "./friends";
 import { getAccessCode, getNickname, setNickname } from "./loginGate";
 
-// Shown when localStorage itself rejects the write — some browsers (private
-// browsing mode, or restrictive in-app webviews) block or throw on it,
-// which previously just made "추가"/"삭제" look like they silently did
-// nothing.
-const STORAGE_ERROR_TEXT =
-  "이 브라우저에서는 저장이 안 돼요. 개인정보 보호 모드이거나, 저장 공간이 제한된 인앱 브라우저(카카오톡 등)일 수 있어요 — 기본 브라우저(Safari/Chrome)로 열어서 다시 시도해보세요.";
+const NETWORK_ERROR_TEXT = "서버에 연결할 수 없습니다.";
 
 export function renderProfile(app: HTMLElement, onBack: () => void): void {
   app.innerHTML = "";
@@ -24,7 +19,7 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
       <button id="friend-add-btn" type="button">추가</button>
     </div>
     <div id="friend-message"></div>
-    <ul class="friend-list">${renderFriendList(getFriends())}</ul>
+    <ul class="friend-list">${renderFriendList([])}</ul>
     <button id="back-btn">뒤로</button>
   `;
   app.appendChild(container);
@@ -34,6 +29,11 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
   const friendInput = container.querySelector<HTMLInputElement>("#friend-name-input")!;
   const friendMessageEl = container.querySelector<HTMLDivElement>("#friend-message")!;
   const friendListEl = container.querySelector<HTMLUListElement>(".friend-list")!;
+
+  // refreshFriendList's fetch can still be in flight when the player
+  // navigates back — without this guard, that late response would overwrite
+  // whatever screen replaced this one.
+  let active = true;
 
   async function save(): Promise<void> {
     const nickname = input.value.trim();
@@ -57,12 +57,16 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
     }
   }
 
-  function refreshFriendList(): void {
-    friendListEl.innerHTML = renderFriendList(getFriends());
+  async function refreshFriendList(): Promise<void> {
+    const friends = await getFriends();
+    if (!active) return;
+    friendListEl.innerHTML = renderFriendList(friends);
     friendListEl.querySelectorAll<HTMLButtonElement>(".friend-remove-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (!removeFriend(btn.dataset.name!)) {
-          friendMessageEl.innerHTML = `<div class="message">${STORAGE_ERROR_TEXT}</div>`;
+      btn.addEventListener("click", async () => {
+        const ok = await removeFriend(btn.dataset.name!);
+        if (!active) return;
+        if (!ok) {
+          friendMessageEl.innerHTML = `<div class="message">${NETWORK_ERROR_TEXT}</div>`;
           return;
         }
         friendMessageEl.innerHTML = "";
@@ -71,9 +75,10 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
     });
   }
 
-  function addFriendFromInput(): void {
+  async function addFriendFromInput(): Promise<void> {
     if (!friendInput.value.trim()) return;
-    const result = addFriend(friendInput.value);
+    const result = await addFriend(friendInput.value);
+    if (!active) return;
     if (result === "ok") {
       friendMessageEl.innerHTML = "";
       friendInput.value = "";
@@ -85,7 +90,7 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
         ? "이미 추가된 친구예요."
         : result === "limit"
           ? "친구는 최대 30명까지만 추가할 수 있어요."
-          : STORAGE_ERROR_TEXT;
+          : NETWORK_ERROR_TEXT;
     friendMessageEl.innerHTML = `<div class="message">${text}</div>`;
   }
 
@@ -98,7 +103,10 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
     if (e.key === "Enter") addFriendFromInput();
   });
   refreshFriendList();
-  container.querySelector("#back-btn")!.addEventListener("click", onBack);
+  container.querySelector("#back-btn")!.addEventListener("click", () => {
+    active = false;
+    onBack();
+  });
 }
 
 function renderFriendList(friends: string[]): string {

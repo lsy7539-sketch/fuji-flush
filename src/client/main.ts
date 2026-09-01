@@ -19,6 +19,23 @@ let localPlayerCount = 4;
 let selectedFriendNames: string[] = [];
 let localBeginnerMode = false;
 
+// friends now live server-side (see friends.ts), so renderLocalSetup can't
+// fetch them synchronously the way it used to. cachedFriends is what it
+// actually renders from; refreshFriendsCache() fetches fresh data and
+// re-renders once it lands — guarded by localSetupActive so a fetch that
+// resolves after the player has already left this screen doesn't stomp
+// whatever screen replaced it (same race the ← button fix in localMode.ts
+// guards against).
+let cachedFriends: string[] = [];
+let localSetupActive = false;
+
+async function refreshFriendsCache(): Promise<void> {
+  const friends = await getFriends();
+  if (!localSetupActive) return;
+  cachedFriends = friends;
+  renderLocalSetup();
+}
+
 function boot(): void {
   document.body.classList.remove("pixel-menu-screen");
   if (location.hash === "#admin") {
@@ -55,7 +72,10 @@ function renderModeSelect(): void {
       localPlayerCount = 4;
       selectedFriendNames = [];
       localBeginnerMode = false;
+      localSetupActive = true;
+      cachedFriends = [];
       renderLocalSetup();
+      refreshFriendsCache();
     },
     onNetwork: () => {
       document.body.classList.remove("pixel-menu-screen");
@@ -70,7 +90,10 @@ function renderModeSelect(): void {
       localPlayerCount = 4;
       selectedFriendNames = [];
       localBeginnerMode = true;
+      localSetupActive = true;
+      cachedFriends = [];
       renderLocalSetup();
+      refreshFriendsCache();
     },
     onProfile: () => {
       document.body.classList.remove("pixel-menu-screen");
@@ -89,7 +112,7 @@ function renderLocalSetup(): void {
   container.className = "setup";
   const speed = getSpeed();
   const speedLabels: Record<Speed, string> = { slow: "느리게", normal: "보통", fast: "빠르게" };
-  const friends = getFriends();
+  const friends = cachedFriends;
   // At most (인원 수 - 1) AI seats exist to fill — if a player count
   // decrease drops below however many friends were already picked, trim
   // the picks down to match rather than leaving an inconsistent selection.
@@ -159,12 +182,20 @@ function renderLocalSetup(): void {
     renderLocalSetup();
   });
   container.querySelector("#start-btn")!.addEventListener("click", () => {
+    localSetupActive = false;
     document.body.classList.remove("center-screen");
     // "뒤로가기" during the game re-opens this same setup screen; "✕" goes
     // all the way home to mode-select.
-    startLocalMode(app, localPlayerCount, selectedFriendNames, localBeginnerMode, renderLocalSetup, renderModeSelect);
+    startLocalMode(app, localPlayerCount, selectedFriendNames, localBeginnerMode, () => {
+      localSetupActive = true;
+      renderLocalSetup();
+      refreshFriendsCache();
+    }, renderModeSelect);
   });
-  container.querySelector("#back-btn")!.addEventListener("click", renderModeSelect);
+  container.querySelector("#back-btn")!.addEventListener("click", () => {
+    localSetupActive = false;
+    renderModeSelect();
+  });
 }
 
 window.addEventListener("hashchange", boot);

@@ -11,6 +11,9 @@ import {
   registerAccessCode,
   revokeAccessCode,
   updateNickname,
+  getFriendsForCode,
+  addFriendForCode,
+  removeFriendForCode,
 } from "./accessCodes";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -96,6 +99,38 @@ app.post("/api/nickname", async (req, res) => {
   } catch (err) {
     res.status(400).json({ ok: false, message: err instanceof Error ? err.message : "변경에 실패했습니다." });
   }
+});
+
+// Self-service friend list (see friends.ts) — same trust model as
+// /api/nickname above: the caller's own access code authorizes the mutation.
+app.post("/api/friends/list", async (req, res) => {
+  const code = req.body?.code;
+  if (typeof code !== "string" || !code.trim()) {
+    res.status(400).json({ ok: false, message: "잘못된 요청입니다." });
+    return;
+  }
+  res.json({ ok: true, friends: await getFriendsForCode(code) });
+});
+
+app.post("/api/friends/add", async (req, res) => {
+  const code = req.body?.code;
+  const name = req.body?.name;
+  if (typeof code !== "string" || !code.trim() || typeof name !== "string") {
+    res.status(400).json({ ok: false, message: "잘못된 요청입니다." });
+    return;
+  }
+  const { result, friends } = await addFriendForCode(code, name);
+  res.json({ ok: result === "ok", result, friends });
+});
+
+app.post("/api/friends/remove", async (req, res) => {
+  const code = req.body?.code;
+  const name = req.body?.name;
+  if (typeof code !== "string" || !code.trim() || typeof name !== "string") {
+    res.status(400).json({ ok: false, message: "잘못된 요청입니다." });
+    return;
+  }
+  res.json({ ok: true, friends: await removeFriendForCode(code, name) });
 });
 
 app.post("/api/admin/login", (req, res) => {
