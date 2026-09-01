@@ -11,6 +11,12 @@ const HUMAN_ID = "human";
 
 const BOT_NAME_POOL = ["카리나", "안유진", "장원영", "수지", "윈터", "미나미", "원이"];
 
+// describeMoveForBeginner's "getting flushed isn't purely bad" note only
+// fires when the replacement card drawn is at least this — deck.ts's
+// VALUE_COUNTS has noticeably fewer copies of 9+ than of the low numbers,
+// so this roughly tracks "a card that's actually hard to come by."
+const BEGINNER_BIG_DRAW_THRESHOLD = 10;
+
 // "초보자 전용 게임하기"'s opening explanation, shown one step at a time via
 // 다음 ▶ (see runTurn's HUMAN_ID branch) instead of all at once — context
 // first (why the numbers matter, why alliances matter), then the mechanics,
@@ -381,8 +387,10 @@ interface MoveAnalysis {
   /** a new card played this turn, if any. */
   played: { value: number } | null;
   alliance: { otherNames: string[]; groupSize: number; power: number } | null;
-  /** each flushed victim's owner (deduped) and the value that got flushed. */
-  flushed: { name: string; value: number }[];
+  /** each flushed victim's owner (deduped), the value that got flushed, and
+   *  the value of the replacement card they drew (null if the draw pile was
+   *  empty). */
+  flushed: { name: string; value: number; drawnValue: number | null }[];
   /** other groups already on the table that were high enough to block a
    *  flush — only populated when the play caused neither a flush nor an
    *  alliance (see analyzeMove). */
@@ -436,10 +444,14 @@ function analyzeMove(before: GameState, after: GameState, playerId: string): Mov
 
       const afterIds = new Set(after.activeCards.map((ac) => ac.cardId));
       const seenOwners = new Set<string>();
+      // playCard() already drew each flush victim's replacement card within
+      // this same before→after step, so it's right there to report.
+      const drawEvents = computeDrawEvents(before, after);
       for (const ac of before.activeCards) {
         if (afterIds.has(ac.cardId) || pushThroughIds.has(ac.cardId) || seenOwners.has(ac.playerId)) continue;
         seenOwners.add(ac.playerId);
-        flushed.push({ name: name(ac.playerId), value: ac.value });
+        const drawn = drawEvents.find((e) => e.playerId === ac.playerId);
+        flushed.push({ name: name(ac.playerId), value: ac.value, drawnValue: drawn ? drawn.value : null });
       }
 
       if (!alliance && flushed.length === 0) {
@@ -502,6 +514,12 @@ function subjectForm(name: string): string {
   return name === "나" ? "내가" : `${name}이(가)`;
 }
 
+// Same irregularity for the topic particle — "나" + 은/는 contracts to "나는",
+// not the bracketed "나은(는)" every other name gets.
+function topicForm(name: string): string {
+  return name === "나" ? "나는" : `${name}은(는)`;
+}
+
 /**
  * Same underlying event as describeMove, but spelled out for someone who
  * doesn't know the rules yet ("초보자 전용 게임하기") — each case says *why*
@@ -526,7 +544,7 @@ export function describeMoveForBeginner(
     );
     notable = true;
     for (const w of a.newlyWon) {
-      parts.push(`🏆 ${w.name}은(는) 이걸로 손패가 0장이 됐어요 — 자기 차례가 아니어도 그 자리에서 바로 승리해요!`);
+      parts.push(`🏆 ${topicForm(w.name)} 이걸로 손패가 0장이 됐어요 — 자기 차례가 아니어도 그 자리에서 바로 승리해요!`);
     }
   }
 
@@ -548,6 +566,17 @@ export function describeMoveForBeginner(
       const reason = a.alliance ? `연합 POWER(${winningValue})가` : `${winningValue}이(가)`;
       parts.push(`💥 ${reason} 더 높아서 ${victims}을(를) 밀어냈어요! 밀려난 사람은 드로우 더미에서 새 카드를 한 장 받아요.`);
       notable = true;
+
+      // Being flushed isn't purely a setback — the replacement card drawn
+      // could easily beat what was just lost. Called out explicitly so a
+      // beginner doesn't read every flush as "그건 나빴다."
+      const bigDraws = a.flushed.filter((f) => f.drawnValue !== null && f.drawnValue >= BEGINNER_BIG_DRAW_THRESHOLD);
+      if (bigDraws.length > 0) {
+        const drawDesc = bigDraws.map((f) => `${topicForm(f.name)} ${f.drawnValue}`).join(", ");
+        parts.push(
+          `✨ ${drawDesc}을(를) 새로 받았어요! 이렇게 밀려나서 새 카드를 받을 때 오히려 더 큰 숫자가 나올 수도 있어요 — 밀려나는 게 무조건 나쁜 건 아니에요.`,
+        );
+      }
     }
     if (!a.alliance && a.flushed.length === 0 && a.blockers.length > 0) {
       // Nothing happened — but a beginner watching a string of "냈어요."
@@ -557,7 +586,7 @@ export function describeMoveForBeginner(
       const blockerDesc = a.blockers
         .map((b) => (b.joined ? `${b.names.join(", ")}의 ${b.value} 연합(POWER ${b.totalValue})` : `${b.names[0]}의 ${b.value}`))
         .join(", ");
-      parts.push(`${blockerDesc}이(가) 더 높거나 같아서, 아무 카드도 밀려나지 않았어요! 낮은 카드를 내는 것도 안전한 선택이에요.`);
+      parts.push(`${blockerDesc}이(가) 더 높거나 같아서, 아무 카드도 밀려나지 않았어요! 낮은 카드를 내서 다른 사람과 연합하는 것도 방법이에요.`);
       notable = true;
     }
   }
