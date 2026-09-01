@@ -42,6 +42,12 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   `;
   container.appendChild(header);
 
+  // Balances the spacer below the hand (see the bottom of this function) —
+  // together they pull the opponents row down and the hand up, so both
+  // converge toward the center-table group instead of sticking to the top
+  // and bottom edges of the screen.
+  container.appendChild(Object.assign(document.createElement("div"), { className: "board-spacer" }));
+
   // Other players sit in a compact strip up top — name, turn/win status,
   // remaining card count, and (rule 7-15) whatever card(s) they currently
   // have down on the table, shown attached to their own seat rather than in
@@ -175,6 +181,10 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     `;
     container.appendChild(myHandEl);
   }
+
+  // Balances the spacer above the opponents row — pulls the hand up off the
+  // bottom edge to meet it, both converging on the center-table group.
+  container.appendChild(Object.assign(document.createElement("div"), { className: "board-spacer" }));
 
   app.appendChild(container);
 
