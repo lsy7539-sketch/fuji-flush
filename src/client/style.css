@@ -447,8 +447,7 @@ input:focus-visible {
 
 .toggle-btn {
   flex: 1;
-  /* the speed toggle has 5 of these in a row (see .setup .toggle-group) —
-     without this, flex items default to min-width:auto ("never shrink
+  /* without this, flex items default to min-width:auto ("never shrink
      below the unwrapped text width"), which is exactly the trap that's
      caused horizontal-overflow bugs elsewhere in this file. */
   min-width: 0;
@@ -465,6 +464,85 @@ input:focus-visible {
 
 .toggle-btn.active {
   background: var(--accent);
+  color: var(--ink);
+}
+
+/* the speed picker as a numbered coordinate axis: a row of numbers, a row
+   of dots on a connecting line, and a row of word labels underneath that's
+   only filled in at the 3 anchor points (1/3/5) — 2 and 4 are read off
+   their position on the line rather than named. A 3-row CSS grid (not 3
+   stacked flex rows) is what keeps the numbers/dots/labels lined up in the
+   same 5 columns regardless of which cells have content and which don't —
+   flex's space-between wouldn't guarantee that once row contents differ. */
+.speed-scale {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  justify-items: center;
+  row-gap: 0.3rem;
+  padding: 0.4rem 0.2rem 0.6rem;
+}
+
+.speed-scale::before {
+  content: "";
+  grid-row: 2;
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 2px;
+  background: var(--line);
+}
+
+.speed-num {
+  grid-row: 1;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+/* .speed-scale prefixed on every rule below (not bare .speed-dot) — .setup
+   button's own padding/border (0,1,1 specificity) would otherwise beat a
+   single-class .speed-dot selector (0,1,0) and silently re-inflate these
+   back to normal-button size, which is exactly what happened before this
+   was scoped: the dots ended up wide enough to throw column 2 through 5
+   noticeably out of line with the numbers/labels above and below them. */
+.speed-scale .speed-dot {
+  grid-row: 2;
+  position: relative;
+  width: 0.6rem;
+  height: 0.6rem;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--card-face);
+}
+
+.speed-scale .speed-dot::after {
+  content: "";
+  position: absolute;
+  /* bigger hit target than the visible dot, without visually growing it —
+     a 0.6rem circle alone is too small to tap reliably. */
+  inset: -0.55rem;
+}
+
+.speed-scale .speed-dot.active {
+  width: 0.85rem;
+  height: 0.85rem;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.speed-anchor-label {
+  grid-row: 3;
+  min-height: 1em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.speed-num.active,
+.speed-anchor-label.active {
   color: var(--ink);
 }
 

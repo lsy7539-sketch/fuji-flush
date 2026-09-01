@@ -112,12 +112,20 @@ function renderLocalSetup(): void {
   const container = document.createElement("div");
   container.className = "setup";
   const speed = getSpeed();
-  const speedLabels: Record<Speed, string> = {
-    veryslow: "매우느림",
-    slow: "느림",
+  const speedOrder: Speed[] = ["veryslow", "slow", "normal", "fast", "veryfast"];
+  // Only the 3 anchor points carry a word — 2 and 4 are just numbered dots
+  // between them, read off the number-line rather than named individually.
+  const speedAnchorLabels: Partial<Record<Speed, string>> = {
+    veryslow: "느리게",
     normal: "보통",
-    fast: "빠름",
-    veryfast: "매우빠름",
+    veryfast: "빠르게",
+  };
+  const speedAriaLabels: Record<Speed, string> = {
+    veryslow: "느리게",
+    slow: "조금 느리게",
+    normal: "보통",
+    fast: "조금 빠르게",
+    veryfast: "빠르게",
   };
   const friends = cachedFriends;
   // At most (인원 수 - 1) AI seats exist to fill — if a player count
@@ -152,11 +160,23 @@ function renderLocalSetup(): void {
         : `<p class="friend-picker-hint">＞ 내 정보 화면에서 함께할 친구를 추가하세요!</p>`
     }
     <label>게임 진행 속도</label>
-    <div class="toggle-group" role="group" aria-label="게임 진행 속도">
-      ${(["veryslow", "slow", "normal", "fast", "veryfast"] as Speed[])
+    <div class="speed-scale" role="group" aria-label="게임 진행 속도">
+      ${speedOrder
         .map(
-          (s) =>
-            `<button class="toggle-btn${s === speed ? " active" : ""}" data-speed-option="${s}">${speedLabels[s]}</button>`,
+          (s, i) =>
+            `<span class="speed-num${s === speed ? " active" : ""}" style="grid-column:${i + 1}">${i + 1}</span>`,
+        )
+        .join("")}
+      ${speedOrder
+        .map(
+          (s, i) =>
+            `<button type="button" class="speed-dot${s === speed ? " active" : ""}" data-speed-option="${s}" aria-label="${speedAriaLabels[s]}" style="grid-column:${i + 1}"></button>`,
+        )
+        .join("")}
+      ${speedOrder
+        .map(
+          (s, i) =>
+            `<span class="speed-anchor-label${s === speed ? " active" : ""}" style="grid-column:${i + 1}">${speedAnchorLabels[s] ?? ""}</span>`,
         )
         .join("")}
     </div>
@@ -165,7 +185,7 @@ function renderLocalSetup(): void {
   `;
   app.appendChild(container);
 
-  container.querySelectorAll<HTMLButtonElement>(".toggle-btn[data-speed-option]").forEach((btn) => {
+  container.querySelectorAll<HTMLButtonElement>(".speed-dot[data-speed-option]").forEach((btn) => {
     btn.addEventListener("click", () => {
       setSpeed(btn.dataset.speedOption as Speed);
       renderLocalSetup();
