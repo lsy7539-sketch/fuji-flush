@@ -6,6 +6,13 @@ import { renderBoard, showAllianceBanner } from "./render";
 
 type Screen = "chooser" | "lobby" | "game";
 
+interface OpenRoom {
+  code: string;
+  name: string;
+  playerCount: number;
+  maxPlayers: number;
+}
+
 export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let socket: WebSocket | null = null;
   let viewerId = "";
@@ -17,6 +24,31 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let errorMessage = "";
   let screen: Screen = "chooser";
   let paused = false;
+  let openRooms: OpenRoom[] = [];
+  // A ?room= invite link used to just prefill the code input — now that
+  // there's no manual code entry, it instead auto-joins once, right away.
+  // The flag stops a rejected/failed attempt from retrying forever every
+  // time render() re-enters the chooser.
+  let autoJoinAttempted = false;
+
+  // Only called at points that actually enter the chooser (not from inside
+  // renderChooser itself) — otherwise every re-render would refire the
+  // fetch, which itself triggers a re-render, looping.
+  async function refreshOpenRooms(): Promise<void> {
+    try {
+      const res = await fetch("/api/rooms");
+      if (screen !== "chooser") return; // left the screen before this resolved
+      if (res.ok) {
+        const data = await res.json();
+        openRooms = data.rooms;
+        render();
+      }
+    } catch {
+      // Leaves whatever list was already showing — the chooser's own
+      // "새로고침" button is the retry path, no need to surface an error
+      // for what's a background convenience fetch.
+    }
+  }
 
   function resetToChooser(): void {
     socket?.close();
@@ -31,6 +63,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     paused = false;
     screen = "chooser";
     render();
+    refreshOpenRooms();
   }
 
   // "뒤로가기": leave this room but stay in online-multiplayer flow (create/join again).
@@ -124,11 +157,43 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     else renderGame();
   }
 
+  function joinRoomByCode(code: string): void {
+    ensureSocket(() => send({ type: "joinRoom", roomCode: code, playerName: getNickname() }));
+  }
+
   function renderChooser(): void {
+    const prefilledCode = new URLSearchParams(location.search).get("room") ?? "";
+    if (prefilledCode && !autoJoinAttempted) {
+      autoJoinAttempted = true;
+      // One-shot — a later page refresh shouldn't try to rejoin the same
+      // room automatically (they may have deliberately left it).
+      history.replaceState(null, "", location.pathname);
+      app.innerHTML = "";
+      const container = document.createElement("div");
+      container.className = "setup";
+      container.innerHTML = `<h1>Fuji Flush · 같이하기</h1><p>초대받은 방에 참가하는 중...</p>`;
+      app.appendChild(container);
+      joinRoomByCode(prefilledCode);
+      return;
+    }
+
     app.innerHTML = "";
     const container = document.createElement("div");
     container.className = "setup";
-    const prefilledCode = new URLSearchParams(location.search).get("room") ?? "";
+    const roomListHtml =
+      openRooms.length > 0
+        ? openRooms
+            .map(
+              (r) => `
+              <li>
+                <span class="code-value">${r.name}</span>
+                <span class="code-date">${r.playerCount}/${r.maxPlayers}명</span>
+                <button class="room-join-btn" data-room-code="${r.code}">참가하기</button>
+              </li>
+            `,
+            )
+            .join("")
+        : `<li class="code-empty">현재 참가할 수 있는 방이 없어요.</li>`;
     container.innerHTML = `
       <h1>Fuji Flush · 같이하기</h1>
       ${errorMessage ? `<div class="message">${errorMessage}</div>` : ""}
@@ -138,9 +203,11 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       <label for="room-code-input">방 코드 (선택, 비우면 자동 생성)</label>
       <input type="text" id="room-code-input" placeholder="원하는 코드" />
       <button id="create-btn">방 만들기</button>
-      <label for="room-code">참가 코드</label>
-      <input type="text" id="room-code" placeholder="코드 입력" value="${prefilledCode}" />
-      <button id="join-btn">코드로 참가하기</button>
+      <div class="open-rooms-header">
+        <label>참가할 수 있는 방</label>
+        <button type="button" id="rooms-refresh-btn" class="edit-nickname-btn">새로고침</button>
+      </div>
+      <ul class="code-list">${roomListHtml}</ul>
       <button id="back-btn" class="back-btn-compact">← 뒤로</button>
     `;
     app.appendChild(container);
@@ -159,15 +226,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
         }),
       );
     });
-    container.querySelector("#join-btn")!.addEventListener("click", () => {
-      const code = container.querySelector<HTMLInputElement>("#room-code")!.value.trim();
-      if (!code) {
-        errorMessage = "참가 코드를 입력해주세요.";
-        render();
-        return;
-      }
-      ensureSocket(() => send({ type: "joinRoom", roomCode: code, playerName: getNickname() }));
+    container.querySelectorAll<HTMLButtonElement>(".room-join-btn").forEach((btn) => {
+      btn.addEventListener("click", () => joinRoomByCode(btn.dataset.roomCode!));
     });
+    container.querySelector("#rooms-refresh-btn")!.addEventListener("click", refreshOpenRooms);
     container.querySelector("#back-btn")!.addEventListener("click", onExit);
   }
 
@@ -258,4 +320,5 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   }
 
   render();
+  refreshOpenRooms();
 }

@@ -1594,6 +1594,32 @@ input:focus-visible {
   margin-top: -0.5rem;
 }
 
+/* ---------- 같이하기: open-room browser ---------- */
+
+.open-rooms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: -0.4rem;
+}
+
+.open-rooms-header label {
+  margin-bottom: 0;
+}
+
+.room-join-btn {
+  cursor: pointer;
+  border: 2px solid var(--line);
+  background: var(--accent);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .code-list {
   list-style: none;
   padding: 0;

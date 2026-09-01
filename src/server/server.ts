@@ -3,7 +3,7 @@ import http from "node:http";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { WebSocketServer } from "ws";
-import { handleConnection, listConnectedRooms } from "./rooms";
+import { handleConnection, listConnectedRooms, listOpenRooms } from "./rooms";
 import { initDb } from "./db";
 import {
   checkAccessCode,
@@ -86,6 +86,14 @@ app.post("/api/login", async (req, res) => {
   } else {
     res.status(401).json({ ok: false, message: "코드가 올바르지 않습니다." });
   }
+});
+
+// Powers the 같이하기 chooser's room browser (networkMode.ts) — no auth
+// beyond having gotten past login in the first place, see rooms.ts's
+// listOpenRooms doc comment for why that's an acceptable trust boundary
+// here.
+app.get("/api/rooms", (_req, res) => {
+  res.json({ rooms: listOpenRooms() });
 });
 
 // Self-service rename (see profile.ts) — no admin auth, the caller's own

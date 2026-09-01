@@ -54,6 +54,30 @@ export function listConnectedRooms(): RoomSummary[] {
   }));
 }
 
+export interface OpenRoom {
+  code: string;
+  name: string;
+  playerCount: number;
+  maxPlayers: number;
+}
+
+// For the 같이하기 chooser's room-browser (server.ts's GET /api/rooms) — a
+// public, unauthenticated listing (just like a room code itself, this isn't
+// sensitive: anyone already past login can see it, same trust boundary the
+// rest of this simple app uses). Only rooms someone could actually join
+// right now: still in LOBBY (not started, not finished) and not full —
+// joinRoom below would reject either case anyway.
+export function listOpenRooms(): OpenRoom[] {
+  return [...rooms.values()]
+    .filter((room) => room.status === "LOBBY" && room.players.length < MAX_PLAYERS)
+    .map((room) => ({
+      code: room.code,
+      name: room.name,
+      playerCount: room.players.length,
+      maxPlayers: MAX_PLAYERS,
+    }));
+}
+
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) {
     socket.send(JSON.stringify(message));
