@@ -1,6 +1,13 @@
 import { addFriend, getFriends, removeFriend } from "./friends";
 import { getAccessCode, getNickname, setNickname } from "./loginGate";
 
+// Shown when localStorage itself rejects the write — some browsers (private
+// browsing mode, or restrictive in-app webviews) block or throw on it,
+// which previously just made "추가"/"삭제" look like they silently did
+// nothing.
+const STORAGE_ERROR_TEXT =
+  "이 브라우저에서는 저장이 안 돼요. 개인정보 보호 모드이거나, 저장 공간이 제한된 인앱 브라우저(카카오톡 등)일 수 있어요 — 기본 브라우저(Safari/Chrome)로 열어서 다시 시도해보세요.";
+
 export function renderProfile(app: HTMLElement, onBack: () => void): void {
   app.innerHTML = "";
   const container = document.createElement("div");
@@ -16,6 +23,7 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
       <input type="text" id="friend-name-input" placeholder="친구 닉네임" maxlength="20" autocomplete="off" />
       <button id="friend-add-btn" type="button">추가</button>
     </div>
+    <div id="friend-message"></div>
     <ul class="friend-list">${renderFriendList(getFriends())}</ul>
     <button id="back-btn">뒤로</button>
   `;
@@ -24,6 +32,7 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
   const input = container.querySelector<HTMLInputElement>("#nickname-input")!;
   const messageEl = container.querySelector<HTMLDivElement>("#profile-message")!;
   const friendInput = container.querySelector<HTMLInputElement>("#friend-name-input")!;
+  const friendMessageEl = container.querySelector<HTMLDivElement>("#friend-message")!;
   const friendListEl = container.querySelector<HTMLUListElement>(".friend-list")!;
 
   async function save(): Promise<void> {
@@ -52,7 +61,11 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
     friendListEl.innerHTML = renderFriendList(getFriends());
     friendListEl.querySelectorAll<HTMLButtonElement>(".friend-remove-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        removeFriend(btn.dataset.name!);
+        if (!removeFriend(btn.dataset.name!)) {
+          friendMessageEl.innerHTML = `<div class="message">${STORAGE_ERROR_TEXT}</div>`;
+          return;
+        }
+        friendMessageEl.innerHTML = "";
         refreshFriendList();
       });
     });
@@ -60,9 +73,20 @@ export function renderProfile(app: HTMLElement, onBack: () => void): void {
 
   function addFriendFromInput(): void {
     if (!friendInput.value.trim()) return;
-    addFriend(friendInput.value);
-    friendInput.value = "";
-    refreshFriendList();
+    const result = addFriend(friendInput.value);
+    if (result === "ok") {
+      friendMessageEl.innerHTML = "";
+      friendInput.value = "";
+      refreshFriendList();
+      return;
+    }
+    const text =
+      result === "duplicate"
+        ? "이미 추가된 친구예요."
+        : result === "limit"
+          ? "친구는 최대 30명까지만 추가할 수 있어요."
+          : STORAGE_ERROR_TEXT;
+    friendMessageEl.innerHTML = `<div class="message">${text}</div>`;
   }
 
   container.querySelector("#save-btn")!.addEventListener("click", save);

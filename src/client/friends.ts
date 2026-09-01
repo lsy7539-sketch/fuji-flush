@@ -16,18 +16,32 @@ export function getFriends(): string[] {
   }
 }
 
-function saveFriends(friends: string[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(friends));
+// Returns whether the write actually succeeded — some browsers (notably
+// in-app webviews like KakaoTalk's, which already needed a workaround for
+// blocked confirm() dialogs — see confirmDialog.ts) restrict or throw on
+// localStorage access. Silently swallowing that made "추가" look like it
+// just did nothing, with no way to tell a real failure apart from "already
+// added" or "browser doesn't support this".
+function saveFriends(friends: string[]): boolean {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(friends));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function addFriend(name: string): void {
+export type AddFriendResult = "ok" | "empty" | "duplicate" | "limit" | "storage-error";
+
+export function addFriend(name: string): AddFriendResult {
   const trimmed = name.trim().slice(0, MAX_NAME_LENGTH);
-  if (!trimmed) return;
+  if (!trimmed) return "empty";
   const friends = getFriends();
-  if (friends.includes(trimmed) || friends.length >= MAX_FRIENDS) return;
-  saveFriends([...friends, trimmed]);
+  if (friends.includes(trimmed)) return "duplicate";
+  if (friends.length >= MAX_FRIENDS) return "limit";
+  return saveFriends([...friends, trimmed]) ? "ok" : "storage-error";
 }
 
-export function removeFriend(name: string): void {
-  saveFriends(getFriends().filter((f) => f !== name));
+export function removeFriend(name: string): boolean {
+  return saveFriends(getFriends().filter((f) => f !== name));
 }

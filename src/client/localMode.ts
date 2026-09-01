@@ -11,6 +11,18 @@ const HUMAN_ID = "human";
 
 const BOT_NAME_POOL = ["카리나", "안유진", "장원영", "수지", "윈터", "미나미", "원이"];
 
+// "초보자 전용 게임하기"'s opening explanation, shown one step at a time via
+// 다음 ▶ (see runTurn's HUMAN_ID branch) instead of all at once — context
+// first (why the numbers matter, why alliances matter), then the mechanics,
+// then finally letting them pick a card.
+const BEGINNER_INTRO_STEPS = [
+  "👋 카드 구성부터 알아둘까요? 숫자가 낮을수록 카드가 많고(2는 16장이나 있어요), 높을수록 적어요 — 16~20은 딱 1장씩뿐이에요.",
+  "이 게임은 모두가 손패를 다 낼 때까지 계속되기 때문에, 혼자서는 버거운 큰 수의 카드를 이기려면 같은 숫자끼리 연합해서 힘을 합치는 게 중요해요!",
+  "차례마다 손패에서 카드 1장을 내요. 더 높은 숫자를 내면 테이블의 낮은 카드를 밀어내고(Flush), 상대는 새 카드를 받아요.",
+  "같은 숫자를 내면 서로 연합해서 힘(POWER)을 합쳐요. 손패를 가장 먼저 다 없애면 승리!",
+  "카드를 하나 골라볼까요? 🎴",
+];
+
 /**
  * @param friendNames - names picked in the setup screen's friend picker, to
  *   use for the first however-many AI seats instead of the random idol pool
@@ -229,18 +241,28 @@ export function startLocalMode(
     if (current.id === HUMAN_ID) {
       if (current.hand.length === 0) {
         message = "";
-      } else if (beginnerMode && !shownBeginnerIntro) {
-        shownBeginnerIntro = true;
-        message =
-          "👋 카드 구성부터 알아둘까요? 숫자가 낮을수록 카드가 많고(2는 16장이나 있어요), 높을수록 적어요 — 16~20은 딱 1장씩뿐이에요. 이 게임은 모두가 손패를 다 낼 때까지 계속되기 때문에, 혼자서는 버거운 큰 수의 카드를 이기려면 같은 숫자끼리 연합해서 힘을 합치는 게 중요해요! 차례마다 손패에서 카드 1장을 내요. 더 높은 숫자를 내면 테이블의 낮은 카드를 밀어내고(Flush), 상대는 새 카드를 받아요. 같은 숫자를 내면 서로 연합해서 힘(POWER)을 합쳐요. 손패를 가장 먼저 다 없애면 승리! 카드를 하나 골라볼까요? 🎴";
-        // Logged so 뒤로 can bring it back later, but not gated — actually
-        // picking a card is the human's own way of saying "I've read this".
-        pushBeginnerLog(message);
-      } else {
-        message = beginnerMode
-          ? "내 차례예요! 어떤 카드를 내야 좋을까요??? 🎴"
-          : "내 차례예요! 어떤 카드를 내볼까요? 🎴";
+        render();
+        return;
       }
+      if (beginnerMode && !shownBeginnerIntro) {
+        shownBeginnerIntro = true;
+        // Paged one step at a time via 다음 ▶ (holdMessage), same as any
+        // other beginner-mode explanation — dumping all of this at once was
+        // too much to take in before the game had even started. Only the
+        // last step goes un-gated, since picking a card is itself how the
+        // viewer says "I've read this."
+        for (let i = 0; i < BEGINNER_INTRO_STEPS.length - 1; i++) {
+          message = BEGINNER_INTRO_STEPS[i];
+          await holdMessage(true);
+        }
+        message = BEGINNER_INTRO_STEPS[BEGINNER_INTRO_STEPS.length - 1];
+        pushBeginnerLog(message);
+        render();
+        return;
+      }
+      message = beginnerMode
+        ? "내 차례예요! 어떤 카드를 내야 좋을까요??? 🎴"
+        : "내 차례예요! 어떤 카드를 내볼까요? 🎴";
       render();
       return;
     }
