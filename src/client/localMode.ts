@@ -44,6 +44,10 @@ export function startLocalMode(
   const winnerOrder: string[] = [];
   const speed = getSpeed();
   const describe = beginnerMode ? describeMoveForBeginner : describeMove;
+  // Shown once, the very first time it's the viewer's turn in beginner mode
+  // — after that the ordinary "당신 차례예요" prompt is enough, since
+  // describeMoveForBeginner is already explaining each case as it comes up.
+  let shownBeginnerIntro = false;
 
   function render(): void {
     renderBoard(app, toPlayerView(state, HUMAN_ID, { revealAll: beginnerMode }), {
@@ -127,7 +131,15 @@ export function startLocalMode(
     }
 
     if (current.id === HUMAN_ID) {
-      message = current.hand.length === 0 ? "" : "당신 차례예요! 어떤 카드를 내볼까요? 🎴";
+      if (current.hand.length === 0) {
+        message = "";
+      } else if (beginnerMode && !shownBeginnerIntro) {
+        shownBeginnerIntro = true;
+        message =
+          "👋 차례마다 손패에서 카드 1장을 내요. 더 높은 숫자를 내면 테이블의 낮은 카드를 밀어내고(Flush), 상대는 새 카드를 받아요. 같은 숫자를 내면 서로 연합해서 힘(POWER)을 합쳐요. 손패를 가장 먼저 다 없애면 승리! 카드를 하나 골라볼까요? 🎴";
+      } else {
+        message = "당신 차례예요! 어떤 카드를 내볼까요? 🎴";
+      }
       render();
       return;
     }

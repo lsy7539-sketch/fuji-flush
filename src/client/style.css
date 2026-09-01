@@ -1868,6 +1868,34 @@ input:focus-visible {
   text-decoration: none;
 }
 
+/* small, deliberately lighter-weight than the three main .ff-menu-item
+   buttons above it — "초보자 전용 게임하기" reads as a big commitment as a
+   full-width item, but this is really just an option, not a 4th mode. */
+.ff-beginner-link {
+  position: absolute;
+  top: 522px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--ff-font);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ff-green);
+  background: transparent;
+  border: 2px solid var(--ff-green);
+  border-radius: var(--ff-radius);
+  padding: 6px 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ff-beginner-link:hover,
+.ff-beginner-link:focus-visible {
+  background: var(--ff-point);
+  color: var(--ff-dark);
+  outline: none;
+}
+
 @media (max-width: 319px) {
   .ff-menu-list {
     width: min(var(--ff-menu-width), calc(100vw - 48px));

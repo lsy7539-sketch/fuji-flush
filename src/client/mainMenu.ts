@@ -1,7 +1,7 @@
 // Fuji Flush main menu — "90s handheld / Game Boy" pixel screen.
 // Pure SVG/CSS, no external images or fonts. Design frame: 390x780.
 
-type MenuAction = "local" | "network" | "rulebook" | "beginner";
+type MenuAction = "local" | "network" | "rulebook";
 
 interface MainMenuOptions {
   onLocal: () => void;
@@ -27,8 +27,8 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
         ${menuItemHtml("local", "혼자하기", true)}
         ${menuItemHtml("network", "같이하기", false)}
         ${menuItemHtml("rulebook", "RULE BOOK", false)}
-        ${menuItemHtml("beginner", "초보자 전용 게임하기", false)}
       </nav>
+      <button class="ff-beginner-link" type="button">✅ 초보자 모드!</button>
       <div class="ff-grass" aria-hidden="true">${grassDecorationSvg()}</div>
       ${opts.showAdminLink ? `<a class="ff-admin-link" href="#admin">관리자 모드</a>` : ""}
     </div>
@@ -43,7 +43,6 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
     local: opts.onLocal,
     network: opts.onNetwork,
     rulebook: opts.onRulebook,
-    beginner: opts.onBeginner,
   };
 
   items.forEach((item) => {
@@ -53,6 +52,8 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
       actions[item.dataset.action as MenuAction]();
     });
   });
+
+  wrap.querySelector(".ff-beginner-link")!.addEventListener("click", opts.onBeginner);
 
   wrap.querySelector(".ff-profile-btn")!.addEventListener("click", opts.onProfile);
 }
