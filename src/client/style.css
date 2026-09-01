@@ -45,6 +45,10 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -54,6 +58,10 @@ body {
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
+  overflow-x: hidden;
+  /* stops double-tap-to-zoom on mobile without disabling pinch-zoom (which
+     a viewport user-scalable=no / maximum-scale=1 would do, hurting a11y) */
+  touch-action: manipulation;
 }
 
 /* toggled only for the login screen (main.ts) — vertically centers its one
@@ -519,6 +527,7 @@ input:focus-visible {
    unambiguous at a glance (rules 7-15). */
 
 .seat-cards {
+  width: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -530,19 +539,23 @@ input:focus-visible {
 }
 
 /* deliberately bigger than .hand-card's max size — the one card actually in
-   play reads as more important than the ones still tucked in your hand. */
+   play reads as more important than the ones still tucked in your hand.
+   Fluid (100% of its seat, capped at 4.4rem) instead of a fixed width, so
+   it shrinks along with a narrow opponent column instead of overflowing it
+   when there are enough players that columns get tight (see .opponent). */
 .seat-card {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 4.4rem;
-  height: 6rem;
+  width: 100%;
+  max-width: 4.4rem;
+  aspect-ratio: 0.733;
   border-radius: var(--radius-sm);
   background: var(--card-face);
   border: 2px solid var(--line);
   font-family: var(--font-display);
-  font-size: 1.7rem;
+  font-size: clamp(0.9rem, 5vw, 1.7rem);
   font-weight: 700;
   color: var(--card-ink);
 }
@@ -604,6 +617,7 @@ input:focus-visible {
   flex-wrap: wrap;
   gap: 1.5rem 0.9rem;
   justify-content: center;
+  min-width: 0;
 }
 
 .opponent {
@@ -635,9 +649,23 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 0.9rem;
+}
+
+.opponent-name span:first-child {
+  /* min-width:0 overrides the flex-item default of min-width:auto, which
+     for a nowrap span otherwise means "never shrink below the full
+     unwrapped text width" — exactly the thing ellipsis is supposed to
+     avoid, and the reason a long name could push its whole seat (and the
+     rest of the row) wider than the viewport. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .opponent-count {
@@ -665,9 +693,14 @@ input:focus-visible {
 }
 
 /* the actual card count, drawn as that many card backs instead of just a
-   number — fanned with overlap so 8 of them still fit a narrow seat. */
+   number — fanned with overlap so 8 of them still fit a narrow seat.
+   min-height reserves a single mini-back's height even at 0 remaining
+   cards, so every opponent's seat-cards row below starts at the same Y
+   regardless of hand size (otherwise a 0-hand seat's played card sits
+   higher than a 1+-hand seat's, which reads as a card-size mismatch). */
 .mini-back-fan {
   display: flex;
+  min-height: 1.15rem;
 }
 
 .mini-back-fan .mini-back:not(:first-child) {
@@ -727,6 +760,47 @@ input:focus-visible {
 .winner-list li:first-child {
   color: var(--ink);
   font-weight: 700;
+}
+
+/* the round's full results, shown once gameStatus is FINISHED (everyone has
+   won — see checkWinners in gameEngine.ts) in place of the small in-progress
+   .winner-list above. */
+.final-ranking {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  max-width: 320px;
+}
+
+.final-rank-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 0.5rem 1rem;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.final-rank-row.first {
+  background: var(--accent);
+}
+
+.final-rank-place {
+  min-width: 2.6rem;
+  text-align: right;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.final-rank-name {
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .pile {
@@ -1169,7 +1243,10 @@ input:focus-visible {
 
 /* narrow phones: a wrapped, off-center grid of opponent seats and a hand
    that spills onto a second row both read as clutter — line each up into
-   one horizontally-scrollable row instead. */
+   one row instead. Every opponent shares the row equally (flex: 1 1 0) and
+   shrinks as more players join, rather than overflowing into a
+   horizontally-scrollable strip — the whole point is that nothing on this
+   page scrolls sideways, however many players there are. */
 @media (max-width: 520px) {
   body {
     padding: 1.75rem 0.75rem;
@@ -1178,13 +1255,13 @@ input:focus-visible {
   .opponents {
     flex-wrap: nowrap;
     justify-content: center;
-    overflow-x: auto;
-    padding: 0.2rem 0.1rem 0.6rem;
+    gap: 0.4rem;
   }
 
   .opponent {
-    flex-shrink: 0;
-    min-width: 6rem;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.6rem 0.4rem;
   }
 }
 

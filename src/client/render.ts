@@ -101,7 +101,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       }
       <span class="pile-count">${view.discardPileCount}</span>
     </div>
-    ${renderWinnerList(view, callbacks.winnerOrder)}
+    ${!isFinished ? renderWinnerList(view, callbacks.winnerOrder) : ""}
   `;
   container.appendChild(centerTable);
 
@@ -115,6 +115,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
     commentary.innerHTML = `
       ${callbacks.message ? `<div class="message">${callbacks.message}</div>` : ""}
       ${isFinished ? `<div class="message win">게임 종료!</div>` : ""}
+      ${isFinished ? renderFinalRanking(view, callbacks.winnerOrder) : ""}
       ${callbacks.paused ? `<div class="message pause">일시정지됨 — ▶ 버튼을 눌러 계속하세요</div>` : ""}
     `;
     container.appendChild(commentary);
@@ -200,7 +201,9 @@ function shoutAlliance(): void {
   setTimeout(() => banner.remove(), 1400);
 }
 
-// "1등 · 이름" down to however many have finished, next to the discard pile.
+// "1등 · 이름" down to however many have finished, next to the discard pile
+// — shown only while the game is still IN_PROGRESS (see renderFinalRanking
+// for the FINISHED state, where everyone has already finished).
 function renderWinnerList(view: PlayerFacingState, winnerOrder: string[] | undefined): string {
   if (!winnerOrder || winnerOrder.length === 0) return "";
   const rows = winnerOrder
@@ -212,10 +215,34 @@ function renderWinnerList(view: PlayerFacingState, winnerOrder: string[] | undef
   return `<ul class="winner-list">${rows}</ul>`;
 }
 
+// The engine only sets gameStatus to FINISHED once *every* player has won
+// (checkWinners in gameEngine.ts), so by then winnerOrder already holds the
+// full 1st-to-last placement — this is the round's final results table,
+// shown prominently instead of the small in-progress winner-list above.
+function renderFinalRanking(view: PlayerFacingState, winnerOrder: string[] | undefined): string {
+  if (!winnerOrder || winnerOrder.length === 0) return "";
+  const rows = winnerOrder
+    .map((id, i) => {
+      const name = view.players.find((p) => p.id === id)?.name ?? id;
+      return `
+        <li class="final-rank-row${i === 0 ? " first" : ""}">
+          <span class="final-rank-place">${i + 1}등</span>
+          <span class="final-rank-name">${name}</span>
+        </li>
+      `;
+    })
+    .join("");
+  return `<ol class="final-ranking">${rows}</ol>`;
+}
+
 // Remaining hand size as that many card backs (fanned with overlap), right
-// below the "N장" count, rather than making the number the only cue.
+// below the "N장" count, rather than making the number the only cue. Always
+// renders the wrapper (even with zero backs) and reserves its height in CSS
+// — otherwise a 0-hand opponent is missing this whole row and every seat's
+// played card below it starts at a different Y than a 1+-hand opponent's,
+// which reads as the cards themselves being different sizes even though
+// they're not.
 function renderMiniBackFan(count: number): string {
-  if (count === 0) return "";
   return `<div class="mini-back-fan">${`<span class="mini-back"></span>`.repeat(count)}</div>`;
 }
 
