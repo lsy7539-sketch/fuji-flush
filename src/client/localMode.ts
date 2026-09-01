@@ -81,9 +81,11 @@ export function startLocalMode(
     beginnerLogIndex = beginnerLog.length - 1;
   }
 
-  // Replaces the old timer-based "hold this message on screen" delay, in
-  // beginner mode only — logs the current message and waits for an explicit
-  // "다음 ▶" click (see beginnerNext) instead of a timeout. Normal mode is
+  // Used for other players' turns (bot moves, push-through resolutions) —
+  // in beginner mode, logs the current message and waits for an explicit
+  // "다음 ▶" click (see beginnerNext) instead of a timeout, since that's
+  // something the viewer is learning about, not something they already did
+  // themselves (see handlePlayCard, which never gates). Normal mode is
   // untouched: still just sleeps, scaled by notability as before.
   async function holdMessage(notable: boolean): Promise<void> {
     if (beginnerMode) {
@@ -183,7 +185,18 @@ export function startLocalMode(
     const described = describe(before, after, playerId);
     message = described.message;
     await resolveMove(before, after);
-    await holdMessage(described.notable);
+    // The viewer's own move never gates on 다음 ▶, even in beginner mode —
+    // they already know what they just did; only *other* players' turns are
+    // worth pausing on. Still logged (for 뒤로 later) and still held on
+    // screen for a moment, just via a timer instead of a click.
+    if (beginnerMode) {
+      pushBeginnerLog(message);
+      const timing = timingFor(speed);
+      await sleep(timing.reveal + (described.notable ? timing.eventBonus : 0));
+    } else {
+      const timing = timingFor(speed);
+      await sleep(described.notable ? timing.reveal + timing.eventBonus : 0);
+    }
     runTurn();
   }
 
