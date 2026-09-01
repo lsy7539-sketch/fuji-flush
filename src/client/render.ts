@@ -73,6 +73,12 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       const isCurrent = p.id === currentPlayerId && !isFinished;
       const badges = [winnerBadge(p.id, p.isWinner, callbacks.winnerOrder)].join("");
 
+      // "turn!" lives outside the bordered card itself — a wrapper holds the
+      // card plus that one small line underneath it, rather than the tag
+      // being just another item inside the border.
+      const wrap = document.createElement("div");
+      wrap.className = "opponent-wrap";
+
       const chip = document.createElement("div");
       chip.className = "opponent" + (isCurrent ? " current" : "") + (p.isWinner ? " winner" : "");
       chip.dataset.playerId = p.id;
@@ -82,9 +88,12 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
         ${p.cards ? renderOpponentHand(p.cards) : renderMiniBackFan(p.handSize)}
         ${renderSeatCards(view, p.id)}
         ${p.handSize === 1 ? `<span class="last-card-flag">1장 남음!</span>` : ""}
-        ${isCurrent ? `<span class="turn-tag">turn!</span>` : ""}
       `;
-      opponentsEl.appendChild(chip);
+      wrap.appendChild(chip);
+      if (isCurrent) {
+        wrap.insertAdjacentHTML("beforeend", `<span class="turn-tag">turn!</span>`);
+      }
+      opponentsEl.appendChild(wrap);
     }
     container.appendChild(opponentsEl);
   }
