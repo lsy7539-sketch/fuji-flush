@@ -6,7 +6,7 @@ import { computeDiscardEvents, computeDrawEvents, flyCard } from "./drawAnimatio
 import { getSpeed, getTiming, type Timing } from "./speed";
 import type { GameState } from "../engine/types";
 import { renderBoard, showAllianceBanner } from "./render";
-import { getAllianceText } from "./loginGate";
+import { getAllianceText, getNickname } from "./loginGate";
 
 const HUMAN_ID = "human";
 
@@ -51,6 +51,9 @@ export function startLocalMode(
   onHome: () => void,
 ): void {
   let state: GameState = createGame(buildPlayerDefs(playerCount, friendNames));
+  // "복불복" 시작: 턴 순서(회전 방향)는 항상 나→AI1→AI2→...로 고정하되, 누가 맨
+  // 처음 낼지는 매 게임 무작위로 정한다 — 항상 사람이 먼저 시작하지 않도록.
+  state.currentPlayerIndex = Math.floor(Math.random() * state.players.length);
   let message = "";
   let paused = false;
   // The viewer's own most recently drawn card, so the hand can mark it — set
@@ -218,7 +221,11 @@ export function startLocalMode(
       }
       throw err;
     }
-    const described = describe(before, after, playerId);
+    // Recorded before describe() so a win message can already tell whether
+    // this is the very first finisher ("승리!") or a later one ("N등!") —
+    // see winnerOrder's doc comment and describeMove's own.
+    recordNewWinners(before, after);
+    const described = describe(before, after, playerId, winnerOrder);
     message = described.message;
     await resolveMove(before, after);
     // The viewer's own move never gates on 다음 ▶, even in beginner mode —
@@ -254,7 +261,8 @@ export function startLocalMode(
     while (state.activeCards.some((ac) => ac.playerId === current.id)) {
       const before = state;
       const after = resolveTurnStart(state, current.id);
-      const described = describe(before, after, current.id);
+      recordNewWinners(before, after);
+      const described = describe(before, after, current.id, winnerOrder);
       message = described.message;
       await resolveMove(before, after);
       await holdMessage(true);
@@ -299,7 +307,8 @@ export function startLocalMode(
     const before = state;
     const cardId = chooseBotMove(state, current.id);
     const after = playCard(state, current.id, cardId);
-    const described = describe(before, after, current.id);
+    recordNewWinners(before, after);
+    const described = describe(before, after, current.id, winnerOrder);
     message = described.message || `${current.name}가 카드를 냈습니다.`;
     await resolveMove(before, after);
     await holdMessage(described.notable);
@@ -489,13 +498,29 @@ function analyzeMove(before: GameState, after: GameState, playerId: string): Mov
   return { playerName: name(playerId), pushThrough, newlyWon, played, alliance, flushed, blockers };
 }
 
+// Only the very first player to finish is a "승리" — everyone after that
+// finished the race, but didn't win it, so they get their placement instead.
+// `winnerOrder` is the game's actual finish order (localMode.ts's
+// recordNewWinners, called before describe() so it already includes this
+// move's finishers) — defaults to [] so existing callers/tests that don't
+// track placement still get the old "always 승리" text for whoever's passed.
+function winAnnouncement(name: string, id: string, winnerOrder: string[]): string {
+  const place = winnerOrder.indexOf(id);
+  return place <= 0 ? `🏆 ${name} 승리!` : `${name} ${place + 1}등!`;
+}
+
 /**
  * Turns a raw before/after state diff into a short Korean sentence describing
  * what just happened, so an AI turn (or the player's own) reads as an event
  * instead of a silent state jump. `notable` marks a flush/alliance/win — those
  * get an extra on-screen hold so the player has time to read them.
  */
-export function describeMove(before: GameState, after: GameState, playerId: string): { message: string; notable: boolean } {
+export function describeMove(
+  before: GameState,
+  after: GameState,
+  playerId: string,
+  winnerOrder: string[] = [],
+): { message: string; notable: boolean } {
   const a = analyzeMove(before, after, playerId);
   const parts: string[] = [];
   let notable = false;
@@ -507,7 +532,7 @@ export function describeMove(before: GameState, after: GameState, playerId: stri
         : `${a.playerName}의 카드가 살아남아 버려졌습니다.`,
     );
     notable = true;
-    for (const w of a.newlyWon) parts.push(`🏆 ${w.name} 승리!`);
+    for (const w of a.newlyWon) parts.push(winAnnouncement(w.name, w.id, winnerOrder));
   }
 
   if (a.played) {
@@ -547,6 +572,7 @@ export function describeMoveForBeginner(
   before: GameState,
   after: GameState,
   playerId: string,
+  winnerOrder: string[] = [],
 ): { message: string; notable: boolean } {
   const a = analyzeMove(before, after, playerId);
   const parts: string[] = [];
@@ -562,7 +588,12 @@ export function describeMoveForBeginner(
     );
     notable = true;
     for (const w of a.newlyWon) {
-      parts.push(`🏆 ${topicForm(w.name)} 이걸로 손패가 0장이 됐어요 — 자기 차례가 아니어도 그 자리에서 바로 승리해요!`);
+      const place = winnerOrder.indexOf(w.id);
+      parts.push(
+        place <= 0
+          ? `🏆 ${topicForm(w.name)} 이걸로 손패가 0장이 됐어요 — 자기 차례가 아니어도 그 자리에서 바로 승리해요!`
+          : `🎉 ${topicForm(w.name)} 이걸로 손패가 0장이 됐어요 — ${place + 1}등으로 게임을 마쳤어요!`,
+      );
     }
   }
 
@@ -627,7 +658,7 @@ function buildPlayerDefs(playerCount: number, friendNames: string[]): { id: stri
   const chosenFriends = friendNames.slice(0, seatCount);
   const idolNames = shuffle(BOT_NAME_POOL).slice(0, seatCount - chosenFriends.length);
   const botNames = [...chosenFriends, ...idolNames];
-  const defs = [{ id: HUMAN_ID, name: "나" }];
+  const defs = [{ id: HUMAN_ID, name: getNickname() }];
   for (let i = 1; i < playerCount; i++) {
     defs.push({ id: `bot-${i}`, name: botNames[i - 1] ?? `AI ${i}` });
   }

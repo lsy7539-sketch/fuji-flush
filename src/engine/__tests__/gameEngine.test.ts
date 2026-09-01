@@ -212,7 +212,7 @@ describe("Joining Forces에 참여한 카드들이 Pushed Through되는 경우 (
 });
 
 describe("손패가 0장이 되어 승리하는 경우", () => {
-  it("마지막 카드가 나중에 플러시되고 드로우 덱이 비어 있으면 승리한다", () => {
+  it("마지막 카드가 플러시(패배)당하면 드로우 덱이 비어 있어도 그 자리에서 승리하지 않는다", () => {
     const state = makeState({
       players: [player("X", []), player("Y", [card("y-8", 8)])],
       activeCards: [active("X", 3, "x-3")],
@@ -225,7 +225,14 @@ describe("손패가 0장이 되어 승리하는 경우", () => {
     const x = next.players.find((p) => p.id === "X")!;
     expect(x.hand).toEqual([]);
     expect(next.activeCards.some((ac) => ac.playerId === "X")).toBe(false);
-    expect(x.isWinner).toBe(true);
+    // 플러시는 패배지 승리 조건인 "자기 차례까지 살아남음"이 아니므로, 드로우할
+    // 카드가 없다는 이유만으로 승리 처리되면 안 된다.
+    expect(x.isWinner).toBe(false);
+
+    // X의 차례가 오면 낼 손패도 activeCard도 없으므로 그제서야 승리 처리된다.
+    const xIndex = next.players.findIndex((p) => p.id === "X");
+    const afterXTurn = playCard({ ...next, currentPlayerIndex: xIndex }, "X", undefined);
+    expect(afterXTurn.players.find((p) => p.id === "X")!.isWinner).toBe(true);
   });
 
   it("Pushed Through로 마지막 활성 카드가 사라지는 순간에도 승리한다", () => {
@@ -243,8 +250,8 @@ describe("손패가 0장이 되어 승리하는 경우", () => {
   });
 });
 
-describe("여러 플레이어가 동시에 승리하는 경우", () => {
-  it("드로우 덱이 비어 있을 때 한 번의 플레이로 두 플레이어가 동시에 승리한다", () => {
+describe("여러 플레이어가 동시에 플러시(패배)당하는 경우", () => {
+  it("드로우 덱이 비어 있어도 플러시당한 두 플레이어 모두 그 자리에서 승리하지 않는다", () => {
     const state = makeState({
       players: [
         player("X", []),
@@ -260,8 +267,8 @@ describe("여러 플레이어가 동시에 승리하는 경우", () => {
 
     const x = next.players.find((p) => p.id === "X")!;
     const w = next.players.find((p) => p.id === "W")!;
-    expect(x.isWinner).toBe(true);
-    expect(w.isWinner).toBe(true);
+    expect(x.isWinner).toBe(false);
+    expect(w.isWinner).toBe(false);
     expect(next.activeCards.some((ac) => ac.playerId === "X" || ac.playerId === "W")).toBe(false);
   });
 });
