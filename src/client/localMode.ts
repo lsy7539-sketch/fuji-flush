@@ -1,6 +1,6 @@
 import { chooseBotMove } from "../ai/botPlayer";
 import { showConfirm } from "./confirmDialog";
-import { GameError, createGame, playCard, resolveTurnStart } from "../engine/gameEngine";
+import { GameError, createGame, getActiveGroups, playCard, resolveTurnStart } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import { computeDiscardEvents, computeDrawEvents, flyCard } from "./drawAnimation";
 import { getSpeed, getTiming, type Timing } from "./speed";
@@ -361,6 +361,10 @@ interface MoveAnalysis {
   alliance: { otherNames: string[]; groupSize: number; power: number } | null;
   /** each flushed victim's owner (deduped) and the value that got flushed. */
   flushed: { name: string; value: number }[];
+  /** other groups already on the table that were high enough to block a
+   *  flush — only populated when the play caused neither a flush nor an
+   *  alliance (see analyzeMove). */
+  blockers: { names: string[]; value: number; totalValue: number; joined: boolean }[];
 }
 
 // Shared by describeMove and describeMoveForBeginner so the two presentation
@@ -392,6 +396,11 @@ function analyzeMove(before: GameState, after: GameState, playerId: string): Mov
   let played: MoveAnalysis["played"] = null;
   let alliance: MoveAnalysis["alliance"] = null;
   const flushed: MoveAnalysis["flushed"] = [];
+  // Populated only when the play caused neither a flush nor an alliance —
+  // whatever's already on the table (excluding the mover's own group) with
+  // value high enough to have blocked it, so describeMoveForBeginner can
+  // say *why* nothing happened instead of leaving a beginner to wonder.
+  const blockers: MoveAnalysis["blockers"] = [];
   if (after.turnCounter > before.turnCounter) {
     const playedCard = after.activeCards.find((ac) => ac.playedAtTurn === after.turnCounter);
     if (playedCard) {
@@ -410,10 +419,22 @@ function analyzeMove(before: GameState, after: GameState, playerId: string): Mov
         seenOwners.add(ac.playerId);
         flushed.push({ name: name(ac.playerId), value: ac.value });
       }
+
+      if (!alliance && flushed.length === 0) {
+        for (const g of getActiveGroups(after.activeCards)) {
+          if (g.value === playedCard.value) continue;
+          blockers.push({
+            names: g.cards.map((ac) => name(ac.playerId)),
+            value: g.value,
+            totalValue: g.totalValue,
+            joined: g.cards.length > 1,
+          });
+        }
+      }
     }
   }
 
-  return { playerName: name(playerId), pushThrough, newlyWon, played, alliance, flushed };
+  return { playerName: name(playerId), pushThrough, newlyWon, played, alliance, flushed, blockers };
 }
 
 /**
@@ -497,9 +518,24 @@ export function describeMoveForBeginner(
     }
     if (a.flushed.length > 0) {
       const victims = a.flushed.map((f) => `${f.name}의 ${f.value}`).join(", ");
-      parts.push(
-        `💥 ${a.played.value}이(가) 더 높아서 ${victims}을(를) 밀어냈어요! 밀려난 사람은 드로우 더미에서 새 카드를 한 장 받아요.`,
-      );
+      // When an alliance is what caused the flush, it's the alliance's
+      // POWER that beat the victim, not the raw card value just played —
+      // saying "6이 더 높아서" when a 6+6 alliance (POWER 12) flushed a 10
+      // would be simply wrong.
+      const winningValue = a.alliance ? a.alliance.power : a.played.value;
+      const reason = a.alliance ? `연합 POWER(${winningValue})가` : `${winningValue}이(가)`;
+      parts.push(`💥 ${reason} 더 높아서 ${victims}을(를) 밀어냈어요! 밀려난 사람은 드로우 더미에서 새 카드를 한 장 받아요.`);
+      notable = true;
+    }
+    if (!a.alliance && a.flushed.length === 0 && a.blockers.length > 0) {
+      // Nothing happened — but a beginner watching a string of "냈어요."
+      // with no consequence could easily read that as "you must always
+      // play higher," so spell out that a lower (or equal) card is a
+      // perfectly normal, safe move.
+      const blockerDesc = a.blockers
+        .map((b) => (b.joined ? `${b.names.join(", ")}의 ${b.value} 연합(POWER ${b.totalValue})` : `${b.names[0]}의 ${b.value}`))
+        .join(", ");
+      parts.push(`${blockerDesc}이(가) 더 높거나 같아서, 아무 카드도 밀려나지 않았어요! 낮은 카드를 내는 것도 안전한 선택이에요.`);
       notable = true;
     }
   }
