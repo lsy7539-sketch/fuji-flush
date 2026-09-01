@@ -59,6 +59,18 @@ describe("toPlayerView", () => {
     expect(b.handSize).toBe(2);
   });
 
+  it("revealAll이면 다른 플레이어의 손패도 그대로 보여준다 (초보자 모드용)", () => {
+    const state = makeState({
+      players: [player("A", [card("a-1", 3)]), player("B", [card("b-1", 9), card("b-2", 4)])],
+    });
+
+    const view = toPlayerView(state, "A", { revealAll: true });
+    const b = view.players.find((p) => p.id === "B")!;
+
+    expect(b.cards).toEqual([card("b-1", 9), card("b-2", 4)]);
+    expect(b.handSize).toBe(2);
+  });
+
   it("드로우 더미는 개수만, 버림 더미는 개수와 맨 위 카드를 노출한다", () => {
     const state = makeState({
       players: [player("A", [])],

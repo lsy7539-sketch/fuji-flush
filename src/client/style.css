@@ -782,6 +782,33 @@ input:focus-visible {
   margin-left: -0.5rem;
 }
 
+/* "초보자 전용 게임하기" — an opponent's real hand values, shown in place of
+   the mini-back-fan when their cards are revealed (see render.ts's
+   renderOpponentHand / toPlayerView's revealAll). */
+.opponent-hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 1.15rem;
+}
+
+.mini-hand-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.15rem;
+  padding: 0 0.2rem;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--card-ink);
+  background: var(--card-face);
+  border: 2px solid var(--line);
+  border-radius: 3px;
+}
+
 /* draw pile / discard pile — sit on the table between everyone's seats and
    the viewer's own hand; #draw-pile is also the launch point for the
    card-flying draw animation (drawAnimation.ts). */

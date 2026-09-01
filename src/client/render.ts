@@ -1,5 +1,6 @@
 import { getActiveGroups } from "../engine/gameEngine";
 import type { PlayerFacingState } from "../engine/playerView";
+import type { Card } from "../engine/types";
 import { getHandSort, setHandSort, sortByValue } from "./handSort";
 
 export interface BoardCallbacks {
@@ -11,6 +12,10 @@ export interface BoardCallbacks {
   /** player ids in the order they won, for the "1등 / 2등" list by the
    *  discard pile — the engine only tracks whether someone won, not when. */
   winnerOrder?: string[];
+  /** "초보자 전용 게임하기" — just a header label + a hint that the view
+   *  itself already has every hand revealed (view.players[].cards is
+   *  non-null for opponents too, via toPlayerView's revealAll option). */
+  beginnerMode?: boolean;
   onPlayCard: (playerId: string, cardId?: string) => void;
   onBack: () => void;
   onTogglePause: () => void;
@@ -30,7 +35,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
   header.className = "header";
   header.innerHTML = `
     <div class="header-top">
-      <h1>Fuji Flush</h1>
+      <h1>Fuji Flush${callbacks.beginnerMode ? " · 초보자 모드" : ""}</h1>
       <div class="game-controls">
         <button class="ctrl-btn" id="ctrl-back" title="뒤로가기" aria-label="뒤로가기">←</button>
         <button class="ctrl-btn" id="ctrl-pause" title="${callbacks.paused ? "계속하기" : "일시정지"}" aria-label="일시정지">${
@@ -66,7 +71,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
       chip.innerHTML = `
         <div class="opponent-name"><span>${p.name}</span>${badges}</div>
         <div class="opponent-count">${p.handSize}장</div>
-        ${renderMiniBackFan(p.handSize)}
+        ${p.cards ? renderOpponentHand(p.cards) : renderMiniBackFan(p.handSize)}
         ${renderSeatCards(view, p.id)}
         ${p.handSize === 1 ? `<span class="last-card-flag">1장 남음!</span>` : ""}
       `;
@@ -280,6 +285,14 @@ function renderFinalRanking(view: PlayerFacingState, winnerOrder: string[] | und
 // they're not.
 function renderMiniBackFan(count: number): string {
   return `<div class="mini-back-fan">${`<span class="mini-back"></span>`.repeat(count)}</div>`;
+}
+
+// "초보자 전용 게임하기" — an opponent's real hand (view.players[].cards is
+// non-null there only when toPlayerView was called with revealAll), shown
+// face-up in place of the usual mini-back-fan count.
+function renderOpponentHand(cards: Card[]): string {
+  const chips = cards.map((c) => `<span class="mini-hand-card">${c.value}</span>`).join("");
+  return `<div class="opponent-hand">${chips}</div>`;
 }
 
 // A player's own active card(s), shown right on their seat (or above their

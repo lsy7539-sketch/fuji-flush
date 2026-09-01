@@ -1,12 +1,13 @@
 // Fuji Flush main menu — "90s handheld / Game Boy" pixel screen.
 // Pure SVG/CSS, no external images or fonts. Design frame: 390x780.
 
-type MenuAction = "local" | "network" | "rulebook";
+type MenuAction = "local" | "network" | "rulebook" | "beginner";
 
 interface MainMenuOptions {
   onLocal: () => void;
   onNetwork: () => void;
   onRulebook: () => void;
+  onBeginner: () => void;
   onProfile: () => void;
   showAdminLink: boolean;
 }
@@ -26,6 +27,7 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
         ${menuItemHtml("local", "혼자하기", true)}
         ${menuItemHtml("network", "같이하기", false)}
         ${menuItemHtml("rulebook", "RULE BOOK", false)}
+        ${menuItemHtml("beginner", "초보자 전용 게임하기", false)}
       </nav>
       <div class="ff-grass" aria-hidden="true">${grassDecorationSvg()}</div>
       ${opts.showAdminLink ? `<a class="ff-admin-link" href="#admin">관리자 모드</a>` : ""}
@@ -41,6 +43,7 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
     local: opts.onLocal,
     network: opts.onNetwork,
     rulebook: opts.onRulebook,
+    beginner: opts.onBeginner,
   };
 
   items.forEach((item) => {

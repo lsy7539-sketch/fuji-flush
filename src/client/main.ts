@@ -11,12 +11,13 @@ import { getSpeed, setSpeed, type Speed } from "./speed";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
-// Both live outside renderLocalSetup so they survive that screen's own
+// All three live outside renderLocalSetup so they survive that screen's own
 // re-renders (speed toggle, +/- stepper, friend picks) — only reset when
 // freshly entering the screen from the main menu (see renderModeSelect's
-// onLocal below).
+// onLocal/onBeginner below).
 let localPlayerCount = 4;
 let selectedFriendNames: string[] = [];
+let localBeginnerMode = false;
 
 function boot(): void {
   document.body.classList.remove("pixel-menu-screen");
@@ -53,6 +54,7 @@ function renderModeSelect(): void {
       document.body.classList.remove("pixel-menu-screen");
       localPlayerCount = 4;
       selectedFriendNames = [];
+      localBeginnerMode = false;
       renderLocalSetup();
     },
     onNetwork: () => {
@@ -62,6 +64,13 @@ function renderModeSelect(): void {
     onRulebook: () => {
       document.body.classList.remove("pixel-menu-screen");
       renderRulebook(app, renderModeSelect);
+    },
+    onBeginner: () => {
+      document.body.classList.remove("pixel-menu-screen");
+      localPlayerCount = 4;
+      selectedFriendNames = [];
+      localBeginnerMode = true;
+      renderLocalSetup();
     },
     onProfile: () => {
       document.body.classList.remove("pixel-menu-screen");
@@ -89,7 +98,8 @@ function renderLocalSetup(): void {
     selectedFriendNames = selectedFriendNames.slice(0, maxFriendPicks);
   }
   container.innerHTML = `
-    <h1>Fuji Flush · 혼자하기</h1>
+    <h1>Fuji Flush · ${localBeginnerMode ? "초보자 모드" : "혼자하기"}</h1>
+    ${localBeginnerMode ? `<p>모든 상대방의 손패가 보이고, 상황이 벌어질 때마다 왜 그런지 자세히 설명해드려요. 카드는 직접 골라 내시면 돼요.</p>` : ""}
     <label>전체 인원 수 (나 + AI, 3~8명)</label>
     <div class="stepper" role="group" aria-label="전체 인원 수">
       <button type="button" id="player-count-minus" aria-label="인원 수 감소" ${localPlayerCount <= 3 ? "disabled" : ""}>−</button>
@@ -152,7 +162,7 @@ function renderLocalSetup(): void {
     document.body.classList.remove("center-screen");
     // "뒤로가기" during the game re-opens this same setup screen; "✕" goes
     // all the way home to mode-select.
-    startLocalMode(app, localPlayerCount, selectedFriendNames, renderLocalSetup, renderModeSelect);
+    startLocalMode(app, localPlayerCount, selectedFriendNames, localBeginnerMode, renderLocalSetup, renderModeSelect);
   });
   container.querySelector("#back-btn")!.addEventListener("click", renderModeSelect);
 }

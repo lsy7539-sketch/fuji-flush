@@ -16,6 +16,10 @@ const BOT_NAME_POOL = ["카리나", "안유진", "장원영", "수지", "윈터"
  *   use for the first however-many AI seats instead of the random idol pool
  *   (main.ts caps this at playerCount - 1 already, but buildPlayerDefs below
  *   re-caps it too so this function doesn't depend on that).
+ * @param beginnerMode - "초보자 전용 게임하기": reveals every hand
+ *   (toPlayerView's revealAll) and swaps in describeMoveForBeginner's longer,
+ *   case-by-case explanations in place of describeMove's terse ones. Still
+ *   the viewer's own real game — they play their own cards same as always.
  * @param onBack - "뒤로가기": re-pick the player count (no confirmation, low stakes).
  * @param onHome - "✕": leave to the single/multi mode-select screen (confirmed first).
  */
@@ -23,6 +27,7 @@ export function startLocalMode(
   app: HTMLElement,
   playerCount: number,
   friendNames: string[],
+  beginnerMode: boolean,
   onBack: () => void,
   onHome: () => void,
 ): void {
@@ -38,13 +43,15 @@ export function startLocalMode(
   // order, so this is tracked here as it happens (recordNewWinners).
   const winnerOrder: string[] = [];
   const speed = getSpeed();
+  const describe = beginnerMode ? describeMoveForBeginner : describeMove;
 
   function render(): void {
-    renderBoard(app, toPlayerView(state, HUMAN_ID), {
+    renderBoard(app, toPlayerView(state, HUMAN_ID, { revealAll: beginnerMode }), {
       message,
       paused,
       newCardId,
       winnerOrder,
+      beginnerMode,
       onPlayCard: handlePlayCard,
       onBack,
       onTogglePause: togglePause,
@@ -84,7 +91,7 @@ export function startLocalMode(
       }
       throw err;
     }
-    const described = describeMove(before, after, playerId);
+    const described = describe(before, after, playerId);
     message = described.message;
     await resolveMove(before, after);
     const timing = getTiming(speed);
@@ -110,7 +117,7 @@ export function startLocalMode(
     while (state.activeCards.some((ac) => ac.playerId === current.id)) {
       const before = state;
       const after = resolveTurnStart(state, current.id);
-      const described = describeMove(before, after, current.id);
+      const described = describe(before, after, current.id);
       message = described.message;
       await resolveMove(before, after);
       const timing = getTiming(speed);
@@ -134,7 +141,7 @@ export function startLocalMode(
     const before = state;
     const cardId = chooseBotMove(state, current.id);
     const after = playCard(state, current.id, cardId);
-    const described = describeMove(before, after, current.id);
+    const described = describe(before, after, current.id);
     message = described.message || `${current.name}가 카드를 냈습니다.`;
     await resolveMove(before, after);
     await sleep(timing.reveal + (described.notable ? timing.eventBonus : 0));
@@ -225,68 +232,153 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+interface MoveAnalysis {
+  playerName: string;
+  /** the mover already had a card on the table that just survived a full
+   *  round (rules 20-26) — it (and any ally sharing its value) gets
+   *  discarded together here, no draw for anyone. */
+  pushThrough: { value: number; allyNames: string[] } | null;
+  /** players (mover or ally) whose hand hit 0 from the push-through discard
+   *  above — rule 33: can happen on someone else's turn. */
+  newlyWon: { id: string; name: string }[];
+  /** a new card played this turn, if any. */
+  played: { value: number } | null;
+  alliance: { otherNames: string[]; groupSize: number; power: number } | null;
+  /** each flushed victim's owner (deduped) and the value that got flushed. */
+  flushed: { name: string; value: number }[];
+}
+
+// Shared by describeMove and describeMoveForBeginner so the two presentation
+// layers can never drift apart on *what* happened — only on how verbosely
+// they say it.
+function analyzeMove(before: GameState, after: GameState, playerId: string): MoveAnalysis {
+  const name = (id: string) => after.players.find((p) => p.id === id)?.name ?? before.players.find((p) => p.id === id)?.name ?? id;
+
+  const ownBefore = before.activeCards.find((ac) => ac.playerId === playerId);
+  let pushThroughIds = new Set<string>();
+  let pushThrough: MoveAnalysis["pushThrough"] = null;
+  let newlyWon: MoveAnalysis["newlyWon"] = [];
+  if (ownBefore) {
+    const survivedGroup = before.activeCards.filter((ac) => ac.value === ownBefore.value);
+    pushThroughIds = new Set(survivedGroup.map((ac) => ac.cardId));
+    const allyNames = survivedGroup.filter((ac) => ac.playerId !== playerId).map((ac) => name(ac.playerId));
+    pushThrough = { value: ownBefore.value, allyNames };
+
+    const groupMemberIds = [playerId, ...survivedGroup.map((ac) => ac.playerId)];
+    newlyWon = [...new Set(groupMemberIds)]
+      .filter((id) => {
+        const wasWinner = before.players.find((p) => p.id === id)?.isWinner;
+        const isWinnerNow = after.players.find((p) => p.id === id)?.isWinner;
+        return !wasWinner && isWinnerNow;
+      })
+      .map((id) => ({ id, name: name(id) }));
+  }
+
+  let played: MoveAnalysis["played"] = null;
+  let alliance: MoveAnalysis["alliance"] = null;
+  const flushed: MoveAnalysis["flushed"] = [];
+  if (after.turnCounter > before.turnCounter) {
+    const playedCard = after.activeCards.find((ac) => ac.playedAtTurn === after.turnCounter);
+    if (playedCard) {
+      played = { value: playedCard.value };
+
+      const groupNow = after.activeCards.filter((ac) => ac.value === playedCard.value);
+      if (groupNow.length > 1) {
+        const others = groupNow.filter((ac) => ac.playerId !== playerId).map((ac) => name(ac.playerId));
+        alliance = { otherNames: others, groupSize: groupNow.length, power: playedCard.value * groupNow.length };
+      }
+
+      const afterIds = new Set(after.activeCards.map((ac) => ac.cardId));
+      const seenOwners = new Set<string>();
+      for (const ac of before.activeCards) {
+        if (afterIds.has(ac.cardId) || pushThroughIds.has(ac.cardId) || seenOwners.has(ac.playerId)) continue;
+        seenOwners.add(ac.playerId);
+        flushed.push({ name: name(ac.playerId), value: ac.value });
+      }
+    }
+  }
+
+  return { playerName: name(playerId), pushThrough, newlyWon, played, alliance, flushed };
+}
+
 /**
  * Turns a raw before/after state diff into a short Korean sentence describing
  * what just happened, so an AI turn (or the player's own) reads as an event
  * instead of a silent state jump. `notable` marks a flush/alliance/win — those
  * get an extra on-screen hold so the player has time to read them.
  */
-export function describeMove(
+export function describeMove(before: GameState, after: GameState, playerId: string): { message: string; notable: boolean } {
+  const a = analyzeMove(before, after, playerId);
+  const parts: string[] = [];
+  let notable = false;
+
+  if (a.pushThrough) {
+    parts.push(
+      a.pushThrough.allyNames.length > 0
+        ? `${a.playerName}와 ${a.pushThrough.allyNames.join(", ")}의 연합 카드가 살아남아 함께 버려졌습니다.`
+        : `${a.playerName}의 카드가 살아남아 버려졌습니다.`,
+    );
+    notable = true;
+    for (const w of a.newlyWon) parts.push(`🏆 ${w.name} 승리!`);
+  }
+
+  if (a.played) {
+    parts.push(`${a.playerName}가 ${a.played.value}를 냈습니다.`);
+    if (a.alliance) {
+      parts.push(`🤝 ${a.alliance.otherNames.join(", ")}와 연합! (${a.played.value} × ${a.alliance.groupSize} = ${a.alliance.power})`);
+      notable = true;
+    }
+    if (a.flushed.length > 0) {
+      parts.push(`💥 ${a.flushed.map((f) => f.name).join(", ")}의 카드가 밀려났습니다.`);
+      notable = true;
+    }
+  }
+
+  return { message: parts.join(" "), notable };
+}
+
+/**
+ * Same underlying event as describeMove, but spelled out for someone who
+ * doesn't know the rules yet ("초보자 전용 게임하기") — each case says *why*
+ * something happened and what it means, not just that it happened.
+ */
+export function describeMoveForBeginner(
   before: GameState,
   after: GameState,
   playerId: string,
 ): { message: string; notable: boolean } {
-  const name = (id: string) => after.players.find((p) => p.id === id)?.name ?? before.players.find((p) => p.id === id)?.name ?? id;
+  const a = analyzeMove(before, after, playerId);
   const parts: string[] = [];
   let notable = false;
 
-  // Push-through: the mover already had a card sitting on the table before
-  // this call — it (and any ally sharing its value) just survived a full
-  // round and got discarded together, no draw for anyone (rules 20-26).
-  const ownBefore = before.activeCards.find((ac) => ac.playerId === playerId);
-  let pushThroughIds = new Set<string>();
-  if (ownBefore) {
-    const survivedGroup = before.activeCards.filter((ac) => ac.value === ownBefore.value);
-    pushThroughIds = new Set(survivedGroup.map((ac) => ac.cardId));
-    const allyNames = survivedGroup.filter((ac) => ac.playerId !== playerId).map((ac) => name(ac.playerId));
+  if (a.pushThrough) {
+    const whoseCard =
+      a.pushThrough.allyNames.length > 0
+        ? `${a.playerName}와(과) 연합했던 ${a.pushThrough.allyNames.join(", ")}의 ${a.pushThrough.value}`
+        : `${a.playerName}의 ${a.pushThrough.value}`;
     parts.push(
-      allyNames.length > 0
-        ? `${name(playerId)}와 ${allyNames.join(", ")}의 연합 카드가 살아남아 함께 버려졌습니다.`
-        : `${name(playerId)}의 카드가 살아남아 버려졌습니다.`,
+      `${whoseCard} 카드가 테이블을 한 바퀴 도는 동안 아무한테도 안 밀리고 살아남았어요! 그래서 버려지는데, 이번엔 새 카드를 받지 않아요 — 손패가 실제로 줄어드는 유일한 순간이에요.`,
     );
     notable = true;
-
-    const groupMemberIds = [playerId, ...survivedGroup.map((ac) => ac.playerId)];
-    const newlyWon = [...new Set(groupMemberIds)].filter((id) => {
-      const wasWinner = before.players.find((p) => p.id === id)?.isWinner;
-      const isWinnerNow = after.players.find((p) => p.id === id)?.isWinner;
-      return !wasWinner && isWinnerNow;
-    });
-    for (const id of newlyWon) parts.push(`🏆 ${name(id)} 승리!`);
+    for (const w of a.newlyWon) {
+      parts.push(`🏆 ${w.name}은(는) 이걸로 손패가 0장이 됐어요 — 자기 차례가 아니어도 그 자리에서 바로 승리해요!`);
+    }
   }
 
-  // A new card played this turn?
-  if (after.turnCounter > before.turnCounter) {
-    const played = after.activeCards.find((ac) => ac.playedAtTurn === after.turnCounter);
-    if (played) {
-      parts.push(`${name(playerId)}가 ${played.value}를 냈습니다.`);
-
-      const groupNow = after.activeCards.filter((ac) => ac.value === played.value);
-      if (groupNow.length > 1) {
-        const others = groupNow.filter((ac) => ac.playerId !== playerId).map((ac) => name(ac.playerId));
-        parts.push(`🤝 ${others.join(", ")}와 연합! (${played.value} × ${groupNow.length} = ${played.value * groupNow.length})`);
-        notable = true;
-      }
-
-      const afterIds = new Set(after.activeCards.map((ac) => ac.cardId));
-      const flushedIds = before.activeCards
-        .filter((ac) => !afterIds.has(ac.cardId) && !pushThroughIds.has(ac.cardId))
-        .map((ac) => ({ cardId: ac.cardId, playerId: ac.playerId }));
-      if (flushedIds.length > 0) {
-        const victimNames = [...new Set(flushedIds.map((ac) => name(ac.playerId)))];
-        parts.push(`💥 ${victimNames.join(", ")}의 카드가 밀려났습니다.`);
-        notable = true;
-      }
+  if (a.played) {
+    parts.push(`${a.playerName}이(가) ${a.played.value}을(를) 냈어요.`);
+    if (a.alliance) {
+      parts.push(
+        `🤝 같은 숫자를 낸 ${a.alliance.otherNames.join(", ")}와(과) 연합했어요! 힘을 합치면 POWER는 ${a.played.value} × ${a.alliance.groupSize} = ${a.alliance.power} — 이보다 낮은 카드나 연합은 전부 밀려나요.`,
+      );
+      notable = true;
+    }
+    if (a.flushed.length > 0) {
+      const victims = a.flushed.map((f) => `${f.name}의 ${f.value}`).join(", ");
+      parts.push(
+        `💥 ${a.played.value}이(가) 더 높아서 ${victims}을(를) 밀어냈어요! 밀려난 사람은 드로우 더미에서 새 카드를 한 장 받아요.`,
+      );
+      notable = true;
     }
   }
 
