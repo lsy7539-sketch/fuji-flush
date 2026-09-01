@@ -968,6 +968,65 @@ input:focus-visible {
   pointer-events: none;
 }
 
+/* stands in for window.confirm() (see confirmDialog.ts) — several in-app
+   browsers this site actually gets opened in block or silently no-op
+   native confirm()/alert(), so "나가기" buttons need their own dialog. */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--overlay-strong);
+}
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 320px;
+  padding: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.confirm-message {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.confirm-actions button {
+  flex: 1;
+  cursor: pointer;
+  padding: 0.65rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.confirm-cancel {
+  background: var(--card-face);
+  color: var(--ink);
+}
+
+.confirm-ok {
+  background: var(--accent);
+  color: var(--ink);
+}
+
 .alliance-banner-text {
   font-family: var(--font-display);
   font-weight: 700;

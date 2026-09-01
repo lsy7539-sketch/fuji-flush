@@ -1,4 +1,5 @@
 import type { PlayerFacingState } from "../engine/playerView";
+import { showConfirm } from "./confirmDialog";
 import { getNickname } from "./loginGate";
 import type { ClientMessage, LobbyPlayer, ServerMessage } from "../shared/protocol";
 import { renderBoard } from "./render";
@@ -33,15 +34,15 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   }
 
   // "뒤로가기": leave this room but stay in online-multiplayer flow (create/join again).
-  function confirmBack(): void {
-    if (confirm("정말 방을 나가시겠어요? 다른 플레이어들과의 연결이 끊어집니다.")) {
+  async function confirmBack(): Promise<void> {
+    if (await showConfirm("정말 방을 나가시겠어요? 다른 플레이어들과의 연결이 끊어집니다.")) {
       resetToChooser();
     }
   }
 
   // "✕": leave all the way back to the single/multi mode-select screen.
-  function confirmQuit(): void {
-    if (confirm("정말 게임을 나가시겠어요? 다른 플레이어들과의 연결이 끊어집니다.")) {
+  async function confirmQuit(): Promise<void> {
+    if (await showConfirm("정말 게임을 나가시겠어요? 다른 플레이어들과의 연결이 끊어집니다.")) {
       socket?.close();
       onExit();
     }

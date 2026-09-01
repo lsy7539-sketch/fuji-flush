@@ -1,4 +1,5 @@
 import { chooseBotMove } from "../ai/botPlayer";
+import { showConfirm } from "./confirmDialog";
 import { GameError, createGame, playCard, resolveTurnStart } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import { computeDiscardEvents, computeDrawEvents, flyCard } from "./drawAnimation";
@@ -42,8 +43,8 @@ export function startLocalMode(
       onPlayCard: handlePlayCard,
       onBack,
       onTogglePause: togglePause,
-      onQuit: () => {
-        if (confirm("정말 게임을 나가시겠어요? 진행 상황이 사라집니다.")) {
+      onQuit: async () => {
+        if (await showConfirm("정말 게임을 나가시겠어요? 진행 상황이 사라집니다.")) {
           onHome();
         }
       },
