@@ -87,6 +87,21 @@ describe("describeMove", () => {
     expect(message).toContain("A가 9를 냈습니다");
   });
 
+  it("첫 번째가 아닌 승리는 '승리!' 대신 등수로 표시한다", () => {
+    const before = makeState({
+      players: [player("A", [card("a-9", 9)]), player("B", [], false)],
+      activeCards: [active("A", 7, "a-7"), active("B", 7, "b-7")],
+      currentPlayerIndex: 0,
+    });
+
+    const after = playCard(before, "A", "a-9");
+    // C already finished earlier, so B (this move's finisher) is 2등, not 승리.
+    const { message } = describeMove(before, after, "A", ["C", "B"]);
+
+    expect(message).toContain("B 2등!");
+    expect(message).not.toContain("🏆 B 승리!");
+  });
+
   it("아무 일도 없음: 낮은 카드를 내도 아무것도 밀려나지 않고 notable이 아니다", () => {
     const before = makeState({
       players: [player("A", []), player("B", [card("b-3", 3)])],

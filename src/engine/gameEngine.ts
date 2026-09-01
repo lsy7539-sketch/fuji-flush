@@ -116,9 +116,18 @@ function removeActiveCard(state: GameState, cardId: string): ActiveCard | undefi
   return removed;
 }
 
-function checkWinners(state: GameState): void {
+// `excludeIds` skips players who were just flushed in this same step (see
+// playCard's step 5/6) — rule 32's "hand 0 + no active card" is meant to
+// capture surviving a full round untouched (rules 20-26), not losing to a
+// higher card. Normally a flush can't produce hand 0 anyway, since
+// drawCardForPlayer replaces the flushed card — but if the draw pile is
+// empty there's no replacement, and without this exclusion that would read
+// as an instant win off a defeat instead of the drawless push-through it's
+// meant to require. They still win the moment their own turn (or an ally's
+// push-through) comes around and finds nothing left to do.
+function checkWinners(state: GameState, excludeIds?: Set<string>): void {
   for (const player of state.players) {
-    if (player.isWinner) continue;
+    if (player.isWinner || excludeIds?.has(player.id)) continue;
     const hasActiveCard = state.activeCards.some((ac) => ac.playerId === player.id);
     if (player.hand.length === 0 && !hasActiveCard) {
       player.isWinner = true;
@@ -250,16 +259,18 @@ export function playCard(state: GameState, playerId: string, cardId?: string): G
   }
 
   // Step 5: flush + draw replacement for each flushed card's owner.
+  const flushedPlayerIds = new Set<string>();
   for (const ac of toFlush) {
     removeActiveCard(next, ac.cardId);
     next.discardPile.push({ id: ac.cardId, value: ac.value });
+    flushedPlayerIds.add(ac.playerId);
     drawCardForPlayer(next, ac.playerId);
   }
   groups = computeGroups(next.activeCards);
   applyGroupIds(next.activeCards, groups);
 
   // Step 6: win-condition check (may resolve multiple simultaneous winners).
-  checkWinners(next);
+  checkWinners(next, flushedPlayerIds);
 
   // Step 7: advance to the next player who hasn't already won.
   advanceTurn(next);
