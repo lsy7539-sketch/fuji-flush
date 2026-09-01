@@ -142,7 +142,19 @@ export function startLocalMode(
     resolve?.();
   }
 
+  // The turn loop (runTurn/handlePlayCard/holdMessage) is a long-lived chain
+  // of awaits — a bot's "think" pause, a timed hold, or (in beginner mode) a
+  // 다음 ▶ gate that can sit open indefinitely. None of that actually stops
+  // just because the viewer navigated away via ← or ✕: without this flag,
+  // whatever the loop was waiting on would eventually resolve and call
+  // render() again, silently overwriting whatever screen they'd navigated
+  // to with the game board again. Every exit path sets this before handing
+  // off, and render() (the loop's only way to touch the screen) refuses to
+  // do anything once it's set.
+  let stopped = false;
+
   function render(): void {
+    if (stopped) return;
     renderBoard(app, toPlayerView(state, HUMAN_ID, { revealAll: beginnerMode }), {
       message,
       paused,
@@ -157,12 +169,16 @@ export function startLocalMode(
           }
         : undefined,
       onPlayCard: handlePlayCard,
-      onBack,
+      onBack: () => {
+        stopped = true;
+        onBack();
+      },
       onTogglePause: togglePause,
       onBeginnerBack: beginnerBack,
       onBeginnerNext: beginnerNext,
       onQuit: async () => {
         if (await showConfirm("정말 게임을 나가시겠어요? 진행 상황이 사라집니다.")) {
+          stopped = true;
           onHome();
         }
       },
