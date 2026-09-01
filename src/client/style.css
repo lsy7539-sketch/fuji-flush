@@ -150,7 +150,11 @@ input:focus-visible {
 
 .setup input {
   padding: 0.55rem 0.7rem;
-  font-size: 0.85rem;
+  /* iOS Safari auto-zooms the page on focus for any input under 16px, and
+     never zooms back out on its own once you navigate away — leaving the
+     whole app stuck zoomed in with a horizontal scrollbar. 16px is the
+     line, not a stylistic choice. */
+  font-size: 16px;
   font-family: var(--font-body);
   background: var(--card-face);
   border: 2px solid var(--line);
@@ -1434,7 +1438,8 @@ input:focus-visible {
 .code-form input {
   flex: 1;
   padding: 0.65rem 0.8rem;
-  font-size: 0.95rem;
+  /* see .setup input above — under 16px triggers iOS Safari's focus zoom */
+  font-size: 16px;
   font-family: var(--font-display);
   background: var(--card-face);
   border: 2px solid var(--line);
@@ -1547,7 +1552,8 @@ input:focus-visible {
   flex: 1;
   min-width: 0;
   padding: 0.35rem 0.5rem;
-  font-size: 0.85rem;
+  /* see .setup input above — under 16px triggers iOS Safari's focus zoom */
+  font-size: 16px;
   font-family: var(--font-body);
   background: var(--card-face);
   border: 2px solid var(--line);
@@ -1590,7 +1596,8 @@ input:focus-visible {
   flex: 1;
   min-width: 100px;
   padding: 0.55rem 0.7rem;
-  font-size: 0.85rem;
+  /* see .setup input above — under 16px triggers iOS Safari's focus zoom */
+  font-size: 16px;
   font-family: var(--font-body);
   background: var(--card-face);
   border: 2px solid var(--line);
@@ -1916,6 +1923,30 @@ input:focus-visible {
   height: var(--ff-mountain-height);
 }
 
+.ff-refresh-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ff-dark);
+  background: var(--ff-bg);
+  border: var(--ff-border-width) solid var(--ff-green);
+  border-radius: var(--ff-radius);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ff-refresh-btn:hover,
+.ff-refresh-btn:focus-visible {
+  background: var(--ff-point);
+  outline: none;
+}
+
 .ff-profile-area {
   position: absolute;
   top: 20px;
@@ -1927,6 +1958,7 @@ input:focus-visible {
 }
 
 .ff-nickname-label {
+  min-width: 0;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--ff-dark);

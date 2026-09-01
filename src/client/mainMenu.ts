@@ -20,6 +20,7 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
   wrap.className = "ff-menu";
   wrap.innerHTML = `
     <div class="ff-menu-frame">
+      <button class="ff-refresh-btn" type="button" aria-label="새로고침" title="새로고침">${refreshIconSvg()}</button>
       <div class="ff-profile-area">
         <span class="ff-nickname-label">${opts.nickname}</span>
         <button class="ff-profile-btn" type="button" aria-label="내 정보" title="내 정보">${personIconSvg()}</button>
@@ -60,6 +61,15 @@ export function renderMainMenu(app: HTMLElement, opts: MainMenuOptions): void {
   wrap.querySelector(".ff-beginner-link")!.addEventListener("click", opts.onBeginner);
 
   wrap.querySelector(".ff-profile-btn")!.addEventListener("click", opts.onProfile);
+
+  // A plain full reload — mainly an escape hatch for the iOS Safari
+  // stuck-zoomed-in state (see .setup input's font-size comment in
+  // style.css): if it ever happens anyway, or a KakaoTalk-style in-app
+  // webview's own bugs leave the page in a bad state, this is a visible way
+  // out that doesn't require finding the browser chrome's own reload button.
+  wrap.querySelector(".ff-refresh-btn")!.addEventListener("click", () => {
+    location.reload();
+  });
 }
 
 function menuItemHtml(action: MenuAction, label: string, selected: boolean): string {
@@ -78,6 +88,20 @@ function arrowIconSvg(): string {
     .map((w, i) => `<rect x="0" y="${i + 1}" width="${w}" height="1" fill="currentColor" />`)
     .join("");
   return `<svg viewBox="0 0 8 8" width="18" height="18" style="shape-rendering:crispEdges" aria-hidden="true">${bars}</svg>`;
+}
+
+function refreshIconSvg(): string {
+  // A blocky pixel-donut ring reads as an ambiguous blob at 18px (tried it),
+  // so unlike the other menu icons this one is a plain smooth glyph — a
+  // circular arrow needs a real curve + arrowhead to actually read as
+  // "refresh" rather than "circle with a bite out of it".
+  return `
+<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+  <path
+    fill="currentColor"
+    d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.08A6 6 0 1 1 12 6a5.96 5.96 0 0 1 4.22 1.78L13 11h7V4l-2.35 2.35z"
+  />
+</svg>`;
 }
 
 function personIconSvg(): string {
