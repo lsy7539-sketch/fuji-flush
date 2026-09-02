@@ -420,6 +420,10 @@ function startGame(socket: WebSocket): void {
   if (room.status !== "LOBBY") throw new Error("이미 시작되었습니다.");
 
   room.state = createGame(room.players.map((p) => ({ id: p.id, name: p.name })));
+  // "복불복" 시작 — 혼자하기(localMode.ts)와 동일하게, 턴 순서(회전 방향) 자체는
+  // 참가 순서대로 고정하되 누가 맨 처음 낼지는 매 게임 무작위로 정한다. 방장이
+  // 항상 먼저 시작하지 않도록.
+  room.state.currentPlayerIndex = Math.floor(Math.random() * room.state.players.length);
   room.status = "IN_PROGRESS";
   room.startedAt = Date.now();
   broadcastState(room, "gameStarted");
