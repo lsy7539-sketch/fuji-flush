@@ -1386,6 +1386,19 @@ input:focus-visible {
   pointer-events: none;
 }
 
+/* an opponent's draw in 같이하기 — same striped card-back look as
+   .pile-card-back, since the value is genuinely hidden from us, not just
+   omitted for style. */
+.flying-card.face-down {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--card-face),
+    var(--card-face) 4px,
+    var(--panel) 4px,
+    var(--panel) 8px
+  );
+}
+
 /* my hand: the one thing that gets laid out large and clickable */
 
 .my-hand {

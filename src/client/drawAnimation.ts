@@ -8,11 +8,15 @@ const FLY_DURATION_MS = 550;
  * the board underneath it. Resolves once the animation has finished and the
  * overlay element has been removed.
  *
+ * @param value - the face to show, or `null` for a face-down card back —
+ *   used in 같이하기 (networkMode.ts) when animating an *opponent's* draw,
+ *   since their new card's identity is redacted same as everyone else's
+ *   hidden hand; showing a real value there would leak it.
  * @param speedMultiplier - 1 = normal; e.g. 0.5 doubles the duration, for
  *   "초보자 전용 게임하기"'s slower flushed-card animation (localMode.ts).
  */
 export function flyCard(
-  value: number,
+  value: number | null,
   fromEl: HTMLElement,
   toEl: HTMLElement,
   speedMultiplier = 1,
@@ -22,8 +26,8 @@ export function flyCard(
   const toRect = toEl.getBoundingClientRect();
 
   const card = document.createElement("div");
-  card.className = "flying-card";
-  card.textContent = String(value);
+  card.className = value === null ? "flying-card face-down" : "flying-card";
+  if (value !== null) card.textContent = String(value);
   card.style.left = `${fromRect.left + fromRect.width / 2}px`;
   card.style.top = `${fromRect.top + fromRect.height / 2}px`;
   document.body.appendChild(card);
@@ -47,7 +51,10 @@ export function flyCard(
 export interface DrawEvent {
   playerId: string;
   cardId: string;
-  value: number;
+  /** null = the drawn card's identity isn't known to us — see
+   *  computeDrawEventsForView, used when the "hand" we're diffing is
+   *  someone else's redacted one. */
+  value: number | null;
 }
 
 /**
@@ -66,6 +73,38 @@ export function computeDrawEvents(
     const beforeIds = new Set(before.players.find((b) => b.id === p.id)?.hand.map((c) => c.id) ?? []);
     for (const c of p.hand) {
       if (!beforeIds.has(c.id)) events.push({ playerId: p.id, cardId: c.id, value: c.value });
+    }
+  }
+  return events;
+}
+
+/**
+ * Same idea as computeDrawEvents, but for 같이하기's own redacted
+ * PlayerFacingState (networkMode.ts) instead of a full GameState — only the
+ * viewer's own `cards` are ever populated (everyone else's is `null`, a real
+ * security boundary, not just a UI choice — see playerView.ts), so an
+ * opponent's draw can only ever be detected as "their handSize went up by
+ * N", with no way to know which N cards. Those become `value: null` events
+ * (flyCard renders those as a face-down card back).
+ */
+export function computeDrawEventsForView(
+  before: { players: { id: string; cards: { id: string; value: number }[] | null; handSize: number }[] },
+  after: { players: { id: string; cards: { id: string; value: number }[] | null; handSize: number }[] },
+  viewerId: string,
+): DrawEvent[] {
+  const events: DrawEvent[] = [];
+  for (const p of after.players) {
+    const beforePlayer = before.players.find((b) => b.id === p.id);
+    if (p.id === viewerId && p.cards) {
+      const beforeIds = new Set(beforePlayer?.cards?.map((c) => c.id) ?? []);
+      for (const c of p.cards) {
+        if (!beforeIds.has(c.id)) events.push({ playerId: p.id, cardId: c.id, value: c.value });
+      }
+      continue;
+    }
+    const delta = p.handSize - (beforePlayer?.handSize ?? 0);
+    for (let i = 0; i < delta; i++) {
+      events.push({ playerId: p.id, cardId: `${p.id}-hidden-draw-${i}`, value: null });
     }
   }
   return events;

@@ -1,5 +1,6 @@
 import type { PlayerFacingState } from "../engine/playerView";
 import { showAlert, showConfirm } from "./confirmDialog";
+import { computeDiscardEvents, computeDrawEventsForView, flyCard } from "./drawAnimation";
 import { getAllianceText, getNickname } from "./loginGate";
 import type { ClientMessage, LobbyPlayer, ServerMessage } from "../shared/protocol";
 import { renderBoard, showAllianceBanner } from "./render";
@@ -60,6 +61,18 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let hostId = "";
   let lobbyPlayers: LobbyPlayer[] = [];
   let lastView: PlayerFacingState | null = null;
+  // Set once a drawn card lands (see resolveNetworkMove) and cleared the
+  // moment the viewer plays their own next card — mirrors localMode.ts's
+  // identical newCardId, driving render.ts's ".is-new" marker the same way
+  // in both modes.
+  let newCardId: string | null = null;
+  // Every incoming gameStarted/stateUpdate is animated by diffing it
+  // against whatever came before (see resolveNetworkMove) — chaining them
+  // through this promise instead of handling each independently keeps them
+  // strictly in arrival order and never overlapping, even if the server
+  // broadcasts faster (e.g. a fast AI pace) than one animation takes to
+  // play out.
+  let animationChain: Promise<void> = Promise.resolve();
   let errorMessage = "";
   let screen: Screen = "chooser";
   let connectingMessage = "";
@@ -153,6 +166,8 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     hostId = "";
     lobbyPlayers = [];
     lastView = null;
+    newCardId = null;
+    animationChain = Promise.resolve();
     errorMessage = message;
     screen = "chooser";
     render();
@@ -171,6 +186,8 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     hostId = "";
     lobbyPlayers = [];
     lastView = null;
+    newCardId = null;
+    animationChain = Promise.resolve();
     errorMessage = "";
     paused = false;
     screen = "chooser";
@@ -230,6 +247,95 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     socket = ws;
   }
 
+  function getSeatEl(playerId: string): HTMLElement | null {
+    return playerId === viewerId
+      ? app.querySelector<HTMLElement>(".my-hand")
+      : app.querySelector<HTMLElement>(`.opponent[data-player-id="${playerId}"]`);
+  }
+
+  // Mirrors localMode.ts's resolveMove, adapted for a redacted
+  // PlayerFacingState (only the viewer's own hand has real card identities
+  // — see computeDrawEventsForView) instead of a full GameState. Diffs
+  // `lastView` against the freshly arrived `after`, stages an intermediate
+  // view that holds discarded cards on the table and withholds newly drawn
+  // ones until their fly animation lands, then settles on the real state.
+  async function resolveNetworkMove(after: PlayerFacingState): Promise<void> {
+    const before = lastView;
+    if (!before) {
+      // Nothing to diff against (the very first view a fresh game/reconnect
+      // sends) — just show it, same as localMode.ts never animates the
+      // initial deal either.
+      lastView = after;
+      screen = "game";
+      render();
+      return;
+    }
+
+    const discardEvents = computeDiscardEvents(before, after);
+    const drawEvents = computeDrawEventsForView(before, after, viewerId);
+
+    if (discardEvents.length === 0 && drawEvents.length === 0) {
+      lastView = after;
+      screen = "game";
+      render();
+      return;
+    }
+
+    const discardedCardIds = new Set(discardEvents.map((e) => e.cardId));
+    const drawCountByPlayer = new Map<string, number>();
+    for (const e of drawEvents) drawCountByPlayer.set(e.playerId, (drawCountByPlayer.get(e.playerId) ?? 0) + 1);
+    const drawnViewerCardIds = new Set(
+      drawEvents.filter((e) => e.playerId === viewerId).map((e) => e.cardId),
+    );
+    const stillOnTable = before.activeCards.filter((ac) => discardedCardIds.has(ac.cardId));
+
+    lastView = {
+      ...after,
+      activeCards: [...after.activeCards, ...stillOnTable],
+      players: after.players.map((p) => {
+        const pendingDraws = drawCountByPlayer.get(p.id) ?? 0;
+        if (pendingDraws === 0) return p;
+        return {
+          ...p,
+          handSize: Math.max(0, p.handSize - pendingDraws),
+          cards: p.cards ? p.cards.filter((c) => !drawnViewerCardIds.has(c.id)) : p.cards,
+        };
+      }),
+    };
+    screen = "game";
+    render();
+
+    const drawPileEl = app.querySelector<HTMLElement>("#draw-pile");
+    const discardPileEl = app.querySelector<HTMLElement>("#discard-pile");
+    const flights: Promise<void>[] = [];
+    if (discardPileEl) {
+      for (const e of discardEvents) {
+        const fromEl = getSeatEl(e.playerId);
+        if (fromEl) flights.push(flyCard(e.value, fromEl, discardPileEl));
+      }
+    }
+    if (drawPileEl) {
+      for (const e of drawEvents) {
+        const toEl = getSeatEl(e.playerId);
+        if (toEl) flights.push(flyCard(e.value, drawPileEl, toEl));
+      }
+    }
+    await Promise.all(flights);
+
+    // Land the real state once every animation finishes, even if the
+    // player navigated mid-flight — screen may no longer be "game" (e.g.
+    // they backed out), in which case there's nothing left to show this on.
+    const viewerDraw = drawEvents.find((e) => e.playerId === viewerId);
+    if (viewerDraw) newCardId = viewerDraw.cardId;
+    lastView = after;
+    if (screen === "game") {
+      render();
+      if (viewerDraw) {
+        app.querySelector<HTMLElement>(`.hand-card[data-card-id="${viewerDraw.cardId}"]`)?.classList.add("just-drawn");
+      }
+    }
+  }
+
   function handleServerMessage(message: ServerMessage): void {
     switch (message.type) {
       case "roomCreated":
@@ -257,7 +363,11 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
         lobbyPlayers = message.players;
         errorMessage = "";
         // IN_PROGRESS is immediately followed by a stateUpdate (rooms.ts's
-        // reconnect handler sends both) which will flip this to "game" —
+        // reconnect handler sends both), which resolveNetworkMove would
+        // otherwise animate as one giant diff against however things stood
+        // before the drop — clearing it here makes that update land as a
+        // plain snap instead, same as any other fresh view.
+        lastView = null;
         // LOBBY has nothing else coming, so land there directly.
         screen = message.status === "LOBBY" ? "lobby" : "game";
         break;
@@ -269,16 +379,17 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
         screen = "lobby";
         break;
       case "gameStarted":
-      case "stateUpdate":
-        lastView = message.view;
+      case "stateUpdate": {
         errorMessage = "";
-        screen = "game";
         // No seat left worth reconnecting into once it's actually over —
         // clears this proactively instead of only on an explicit ← / ✕,
         // so a tab closed straight from the results screen doesn't leave a
         // stale session behind for next time.
         if (message.view.gameStatus === "FINISHED") clearRoomSession();
-        break;
+        const view = message.view;
+        animationChain = animationChain.then(() => resolveNetworkMove(view));
+        return; // resolveNetworkMove renders on its own once it's done
+      }
       case "actionRejected":
         errorMessage = message.reason;
         break;
@@ -312,6 +423,8 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
           hostId = "";
           lobbyPlayers = [];
           lastView = null;
+          newCardId = null;
+          animationChain = Promise.resolve();
           errorMessage = "";
           screen = "chooser";
           render();
@@ -491,7 +604,9 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     renderBoard(app, lastView, {
       message: errorMessage,
       paused,
+      newCardId,
       onPlayCard: (_playerId, cardId) => {
+        newCardId = null;
         send({ type: "playCard", cardId });
         // Simple wait-for-server guard: disable further input until the next
         // stateUpdate/actionRejected re-renders. No optimistic UI on purpose.
