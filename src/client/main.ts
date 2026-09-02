@@ -1,13 +1,14 @@
 import "./style.css";
 import { startAdminMode } from "./adminMode";
-import { getFriends } from "./friends";
+import { getCachedFriends, getFriends, prefetchFriends } from "./friends";
 import { startLocalMode } from "./localMode";
 import { getNickname, isAdminCodeSession, isAuthed, renderLoginGate } from "./loginGate";
 import { renderMainMenu } from "./mainMenu";
 import { startNetworkMode } from "./networkMode";
 import { renderProfile } from "./profile";
 import { renderRulebook } from "./rulebook";
-import { getSpeed, setSpeed, type Speed } from "./speed";
+import { getSpeed, setSpeed } from "./speed";
+import { bindSpeedScale, renderSpeedScale } from "./speedScale";
 import { disableScreenWakeLock } from "./wakeLock";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -22,11 +23,16 @@ let localBeginnerMode = false;
 
 // friends now live server-side (see friends.ts), so renderLocalSetup can't
 // fetch them synchronously the way it used to. cachedFriends is what it
-// actually renders from; refreshFriendsCache() fetches fresh data and
-// re-renders once it lands — guarded by localSetupActive so a fetch that
-// resolves after the player has already left this screen doesn't stomp
-// whatever screen replaced it (same race the ← button fix in localMode.ts
-// guards against).
+// actually renders from — seeded from friends.ts's own cache (populated by
+// prefetchFriends() right after login, see boot() below) so the very first
+// render already has real data instead of an empty list that then pops in
+// a beat later once the fetch lands, which read as the friend picker
+// suddenly appearing/growing like something had gone wrong.
+// refreshFriendsCache() still re-fetches on top of that (catches anything
+// added/removed since login, or a prefetch that hadn't resolved yet) —
+// guarded by localSetupActive so a fetch that resolves after the player
+// has already left this screen doesn't stomp whatever replaced it (same
+// race the ← button fix in localMode.ts guards against).
 let cachedFriends: string[] = [];
 let localSetupActive = false;
 
@@ -55,11 +61,13 @@ function boot(): void {
     document.body.classList.add("center-screen");
     renderLoginGate(app, () => {
       document.body.classList.remove("center-screen");
+      prefetchFriends();
       renderModeSelect();
     });
     return;
   }
   document.body.classList.remove("center-screen");
+  prefetchFriends();
   renderModeSelect();
 }
 
@@ -74,7 +82,7 @@ function renderModeSelect(): void {
       selectedFriendNames = [];
       localBeginnerMode = false;
       localSetupActive = true;
-      cachedFriends = [];
+      cachedFriends = getCachedFriends() ?? [];
       renderLocalSetup();
       refreshFriendsCache();
     },
@@ -92,7 +100,7 @@ function renderModeSelect(): void {
       selectedFriendNames = [];
       localBeginnerMode = true;
       localSetupActive = true;
-      cachedFriends = [];
+      cachedFriends = getCachedFriends() ?? [];
       renderLocalSetup();
       refreshFriendsCache();
     },
@@ -114,21 +122,6 @@ function renderLocalSetup(): void {
   const container = document.createElement("div");
   container.className = "setup";
   const speed = getSpeed();
-  const speedOrder: Speed[] = ["veryslow", "slow", "normal", "fast", "veryfast"];
-  // Only the 3 anchor points carry a word — 2 and 4 are just numbered dots
-  // between them, read off the number-line rather than named individually.
-  const speedAnchorLabels: Partial<Record<Speed, string>> = {
-    veryslow: "느리게",
-    normal: "보통",
-    veryfast: "빠르게",
-  };
-  const speedAriaLabels: Record<Speed, string> = {
-    veryslow: "느리게",
-    slow: "조금 느리게",
-    normal: "보통",
-    fast: "조금 빠르게",
-    veryfast: "빠르게",
-  };
   const friends = cachedFriends;
   // At most (인원 수 - 1) AI seats exist to fill — if a player count
   // decrease drops below however many friends were already picked, trim
@@ -162,36 +155,15 @@ function renderLocalSetup(): void {
         : `<p class="friend-picker-hint">＞ 내 정보 화면에서 함께할 친구를 추가하세요!</p>`
     }
     <label>게임 진행 속도</label>
-    <div class="speed-scale" role="group" aria-label="게임 진행 속도">
-      ${speedOrder
-        .map(
-          (s, i) =>
-            `<span class="speed-num${s === speed ? " active" : ""}" style="grid-column:${i + 1}">${i + 1}</span>`,
-        )
-        .join("")}
-      ${speedOrder
-        .map(
-          (s, i) =>
-            `<button type="button" class="speed-dot${s === speed ? " active" : ""}" data-speed-option="${s}" aria-label="${speedAriaLabels[s]}" style="grid-column:${i + 1}"></button>`,
-        )
-        .join("")}
-      ${speedOrder
-        .map(
-          (s, i) =>
-            `<span class="speed-anchor-label${s === speed ? " active" : ""}" style="grid-column:${i + 1}">${speedAnchorLabels[s] ?? ""}</span>`,
-        )
-        .join("")}
-    </div>
+    ${renderSpeedScale(speed)}
     <button id="start-btn">게임 시작</button>
     <button id="back-btn" class="back-btn-compact">← 뒤로</button>
   `;
   app.appendChild(container);
 
-  container.querySelectorAll<HTMLButtonElement>(".speed-dot[data-speed-option]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setSpeed(btn.dataset.speedOption as Speed);
-      renderLocalSetup();
-    });
+  bindSpeedScale(container, (s) => {
+    setSpeed(s);
+    renderLocalSetup();
   });
   container.querySelectorAll<HTMLButtonElement>(".friend-chip").forEach((btn) => {
     btn.addEventListener("click", () => {
