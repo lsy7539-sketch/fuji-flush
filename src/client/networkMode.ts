@@ -69,6 +69,15 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let deliberateClose = false;
   let reconnecting = false;
   let reconnectIntervalId: ReturnType<typeof setInterval> | null = null;
+  // True only for the one-shot, invisible "do I still have a room from
+  // before?" check on first opening 같이하기 (see the bottom of this
+  // function) — as opposed to `reconnecting`, which is the loud retry loop
+  // for a connection that was actively dropped mid-session. A stale
+  // sessionStorage record (the tab was closed without going through ← / ✕,
+  // or the room ended on its own after everyone else left) is expected and
+  // not an error worth surfacing — the person opening 같이하기 fresh never
+  // asked to rejoin anything, so failing here should be silent.
+  let pendingSilentResume = false;
   // A ?room= invite link used to just prefill the code input — now that
   // there's no manual code entry, it instead auto-joins once, right away.
   // The flag stops a rejected/failed attempt from retrying forever every
@@ -199,6 +208,11 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     });
     ws.addEventListener("close", () => {
       if (deliberateClose) return;
+      if (pendingSilentResume) {
+        pendingSilentResume = false;
+        clearRoomSession();
+        return;
+      }
       // Only a live game (or its waiting room) is worth automatically
       // reconnecting into — the chooser/room-browser has nothing to resume.
       if (screen === "game" || screen === "lobby" || screen === "connecting") {
@@ -227,6 +241,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
         break;
       case "reconnected":
         stopReconnectLoop();
+        pendingSilentResume = false;
         roomCode = message.roomCode;
         roomName = message.roomName;
         viewerId = message.youAre;
@@ -250,11 +265,24 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
         lastView = message.view;
         errorMessage = "";
         screen = "game";
+        // No seat left worth reconnecting into once it's actually over —
+        // clears this proactively instead of only on an explicit ← / ✕,
+        // so a tab closed straight from the results screen doesn't leave a
+        // stale session behind for next time.
+        if (message.view.gameStatus === "FINISHED") clearRoomSession();
         break;
       case "actionRejected":
         errorMessage = message.reason;
         break;
       case "errorMessage":
+        if (pendingSilentResume) {
+          // The stale session didn't pan out — quietly forget it. The
+          // person is already looking at (or about to see) the normal
+          // chooser, which never mentioned trying this in the first place.
+          pendingSilentResume = false;
+          clearRoomSession();
+          return;
+        }
         if (reconnecting || screen === "connecting") {
           giveUpReconnecting(message.message);
           return;
@@ -472,14 +500,18 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     });
   }
 
+  render();
+  refreshOpenRooms();
+  // A leftover room-session record from before (see saveRoomSession) might
+  // still be resumable (a real drop mid-game, tab reloaded) or might just
+  // be stale (the room ended on its own after this tab closed without
+  // going through ← / ✕, which is the only place that clears it) — there's
+  // no way to tell which without asking the server, so ask quietly instead
+  // of blocking the chooser on it or surfacing a failure the person never
+  // triggered themselves.
   const savedSession = loadRoomSession();
   if (savedSession) {
-    screen = "connecting";
-    connectingMessage = "다시 연결하는 중...";
-    render();
-    startReconnectLoop();
-  } else {
-    render();
-    refreshOpenRooms();
+    pendingSilentResume = true;
+    ensureSocket(() => send({ type: "reconnect", roomCode: savedSession.roomCode, token: savedSession.token }));
   }
 }
