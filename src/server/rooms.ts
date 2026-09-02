@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { WebSocket } from "ws";
 import { chooseBotMove } from "../ai/botPlayer";
-import { GameError, createGame, playCard } from "../engine/gameEngine";
+import { GameError, createGame, playCard, resolveTurnStart } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import type { GameState } from "../engine/types";
 import { BOT_NAME_POOL } from "../shared/botNames";
@@ -383,6 +383,32 @@ function removeBot(socket: WebSocket, botId: string): void {
   broadcastLobby(room);
 }
 
+// Mirrors localMode.ts's runTurn loop. playCard already resolves a
+// survived push-through card for whoever it's currently calling playCard
+// *as* — but that rule actually fires the instant a turn begins, not
+// whenever that player eventually gets around to submitting their next
+// move. Without this, a card that survived push-through into someone's
+// turn just sits there looking un-discarded to everyone else for however
+// long that player takes to act, instead of clearing right away like it
+// does in 혼자하기 (which calls resolveTurnStart eagerly, in this same
+// spot in its own turn loop).
+//
+// A loop, not a single check, for the same reason localMode.ts's is: one
+// resolution can itself advance the turn (an already-empty-handed owner
+// just won) straight to someone else in the exact same situation.
+function resolvePendingTurnStarts(room: Room): void {
+  while (room.state) {
+    const current = room.state.players[room.state.currentPlayerIndex];
+    if (!current || !room.state.activeCards.some((ac) => ac.playerId === current.id)) return;
+    room.state = resolveTurnStart(room.state, current.id);
+    if (room.state.gameStatus === "FINISHED") {
+      room.status = "FINISHED";
+      recordMatch(room).catch((err) => console.error("전적 기록 실패:", err));
+      return;
+    }
+  }
+}
+
 // After any move (a real player's, or a bot's own previous one), check
 // whether the seat that's now up is a server-run one and, if so, play it
 // a beat later — recursing afterward so a run of consecutive bot turns
@@ -405,6 +431,8 @@ function maybeScheduleBotMove(room: Room): void {
     if (room.state.gameStatus === "FINISHED") {
       room.status = "FINISHED";
       recordMatch(room).catch((err) => console.error("전적 기록 실패:", err));
+    } else {
+      resolvePendingTurnStarts(room);
     }
     broadcastState(room, "stateUpdate");
     maybeScheduleBotMove(room);
@@ -453,6 +481,8 @@ function handlePlayCard(socket: WebSocket, cardId: string | undefined): void {
     // Fire-and-forget: recording history shouldn't delay the game-over
     // broadcast everyone is waiting on.
     recordMatch(room).catch((err) => console.error("전적 기록 실패:", err));
+  } else {
+    resolvePendingTurnStarts(room);
   }
   broadcastState(room, "stateUpdate");
   maybeScheduleBotMove(room);
