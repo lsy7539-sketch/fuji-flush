@@ -4,6 +4,9 @@ import { getAllianceText, getNickname } from "./loginGate";
 import type { ClientMessage, LobbyPlayer, ServerMessage } from "../shared/protocol";
 import { renderBoard, showAllianceBanner } from "./render";
 import { refreshIconSvg } from "./icons";
+import { getSpeed } from "./speed";
+import { bindSpeedScale, renderSpeedScale } from "./speedScale";
+import type { Speed } from "../shared/speed";
 import { disableScreenWakeLock } from "./wakeLock";
 
 type Screen = "chooser" | "lobby" | "game" | "connecting";
@@ -62,6 +65,11 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let connectingMessage = "";
   let paused = false;
   let openRooms: OpenRoom[] = [];
+  // Only the host's choice actually matters (see startGame's `speed` param
+  // — it paces AI seats, and only the host can start) — defaults to
+  // whatever 혼자하기 last used, purely as a familiar starting point, not a
+  // shared preference between the two modes.
+  let lobbySpeed: Speed = getSpeed();
   // Set right before every deliberate socket.close() (resetToChooser,
   // confirmQuit) — the WS "close" listener uses this to tell "I chose to
   // leave" apart from an actual dropped connection, which is the only case
@@ -417,7 +425,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       <p>친구는 같이하기 화면에서 이 방을 찾아 바로 참가할 수 있어요 — 초대 링크로 보내도 돼요 (3~8명 필요, AI로 채워도 돼요)</p>
       ${errorMessage ? `<div class="message">${errorMessage}</div>` : ""}
       <button id="invite-btn">초대 링크 복사</button>
-      ${isHost ? `<button type="button" id="add-bot-btn" ${canAddBot ? "" : "disabled"}>🤖 AI 추가</button>` : ""}
+      ${isHost ? `<button type="button" id="add-bot-btn" ${canAddBot ? "" : "disabled"}>+ 🤖 AI 추가</button>` : ""}
       <ul class="lobby-players">
         ${lobbyPlayers
           .map(
@@ -434,7 +442,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       </ul>
       ${
         isHost
-          ? `<button id="start-btn" ${canStart ? "" : "disabled"}>게임 시작${
+          ? `
+            <label>게임 진행 속도 (AI가 있을 때만 적용돼요)</label>
+            ${renderSpeedScale(lobbySpeed)}
+            <button id="start-btn" ${canStart ? "" : "disabled"}>게임 시작${
               canStart ? "" : " (최소 3명 필요)"
             }</button>`
           : `<p>방장이 게임을 시작하기를 기다리는 중...</p>`
@@ -442,9 +453,15 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       <button id="lobby-back-btn" class="back-btn-compact">← 뒤로</button>
     `;
     app.appendChild(container);
+    if (isHost) {
+      bindSpeedScale(container, (s) => {
+        lobbySpeed = s;
+        renderLobby();
+      });
+    }
     container
       .querySelector("#start-btn")
-      ?.addEventListener("click", () => send({ type: "startGame" }));
+      ?.addEventListener("click", () => send({ type: "startGame", speed: lobbySpeed }));
     container.querySelector("#add-bot-btn")?.addEventListener("click", () => send({ type: "addBot" }));
     container.querySelectorAll<HTMLButtonElement>(".remove-bot-btn").forEach((btn) => {
       btn.addEventListener("click", () => send({ type: "removeBot", playerId: btn.dataset.botId! }));

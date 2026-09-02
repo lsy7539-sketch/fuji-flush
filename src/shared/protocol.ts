@@ -1,4 +1,5 @@
 import type { PlayerFacingState } from "../engine/playerView";
+import type { Speed } from "./speed";
 
 export type ClientMessage =
   | { type: "createRoom"; playerName: string; roomName?: string }
@@ -18,7 +19,10 @@ export type ClientMessage =
   // one real person in it.
   | { type: "addBot" }
   | { type: "removeBot"; playerId: string }
-  | { type: "startGame" }
+  // speed only matters for however many AI seats are in the room (see
+  // rooms.ts's maybeScheduleBotMove) — a room with no bots ignores it
+  // entirely, since every other action here is already player-paced.
+  | { type: "startGame"; speed?: Speed }
   | { type: "playCard"; cardId?: string }
   | { type: "shoutAlliance"; text?: string };
 

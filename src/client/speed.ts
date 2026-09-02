@@ -1,4 +1,6 @@
-export type Speed = "veryslow" | "slow" | "normal" | "fast" | "veryfast";
+import { SPEED_ORDER, type Speed } from "../shared/speed";
+
+export type { Speed };
 
 export interface Timing {
   /** delay before an AI move resolves, i.e. "thinking" */
@@ -22,11 +24,10 @@ const TIMINGS: Record<Speed, Timing> = {
 };
 
 const STORAGE_KEY = "fuji-flush-speed";
-const VALID_SPEEDS: Speed[] = ["veryslow", "slow", "normal", "fast", "veryfast"];
 
 export function getSpeed(): Speed {
   const saved = localStorage.getItem(STORAGE_KEY);
-  return (VALID_SPEEDS as string[]).includes(saved ?? "") ? (saved as Speed) : "normal";
+  return (SPEED_ORDER as string[]).includes(saved ?? "") ? (saved as Speed) : "normal";
 }
 
 export function setSpeed(speed: Speed): void {

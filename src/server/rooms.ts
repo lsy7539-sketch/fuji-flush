@@ -6,6 +6,7 @@ import { toPlayerView } from "../engine/playerView";
 import type { GameState } from "../engine/types";
 import { BOT_NAME_POOL } from "../shared/botNames";
 import type { ClientMessage, RoomStatus, ServerMessage } from "../shared/protocol";
+import type { Speed } from "../shared/speed";
 import { pool } from "./db";
 import { generateRoomCode } from "./roomCode";
 
@@ -19,10 +20,19 @@ const MAX_PLAYERS = 8;
 const RECONNECT_GRACE_MS = 60_000;
 
 // A brief "thinking" pause before a server-run AI seat plays — instant
-// would feel like a glitch to the real people watching. No per-viewer
-// speed setting to honor here (unlike 혼자하기's own timer), since a room
-// can have several real players with different preferences.
-const BOT_THINK_MS = 900;
+// would feel like a glitch to the real people watching. The host picks
+// one of these when starting the game (see startGame's `speed` param);
+// there's no per-viewer setting the way 혼자하기 has, since a room can
+// have several real players — one shared pace for the whole room instead.
+// Mirrors client/speed.ts's own `think` values for the same 5 levels.
+const BOT_THINK_MS_BY_SPEED: Record<Speed, number> = {
+  veryslow: 3600,
+  slow: 2600,
+  normal: 1500,
+  fast: 700,
+  veryfast: 350,
+};
+const DEFAULT_BOT_THINK_MS = BOT_THINK_MS_BY_SPEED.normal;
 
 interface RoomPlayer {
   id: string;
@@ -46,6 +56,8 @@ interface Room {
   state: GameState | null;
   status: RoomStatus;
   startedAt: number | null;
+  // Set once, from startGame's `speed` param — see BOT_THINK_MS_BY_SPEED.
+  botThinkMs: number;
 }
 
 // Single in-memory registry — rooms disappear on server restart. Acceptable for a
@@ -235,7 +247,7 @@ function handleMessage(socket: WebSocket, message: ClientMessage): void {
     case "removeBot":
       return removeBot(socket, message.playerId);
     case "startGame":
-      return startGame(socket);
+      return startGame(socket, message.speed);
     case "playCard":
       return handlePlayCard(socket, message.cardId);
     case "shoutAlliance":
@@ -265,6 +277,7 @@ function createRoom(socket: WebSocket, playerName: string, roomName: string | un
     state: null,
     status: "LOBBY",
     startedAt: null,
+    botThinkMs: DEFAULT_BOT_THINK_MS,
   };
   rooms.set(code, room);
   send(socket, { type: "roomCreated", roomCode: code, roomName: room.name, youAre: playerId, reconnectToken });
@@ -436,10 +449,10 @@ function maybeScheduleBotMove(room: Room): void {
     }
     broadcastState(room, "stateUpdate");
     maybeScheduleBotMove(room);
-  }, BOT_THINK_MS);
+  }, room.botThinkMs);
 }
 
-function startGame(socket: WebSocket): void {
+function startGame(socket: WebSocket, speed: Speed | undefined): void {
   const found = findRoomBySocket(socket);
   if (!found) throw new Error("참가한 방이 없습니다.");
   const { room, player } = found;
@@ -447,6 +460,9 @@ function startGame(socket: WebSocket): void {
   if (room.players.length < MIN_PLAYERS) throw new Error(`최소 ${MIN_PLAYERS}명이 필요합니다.`);
   if (room.status !== "LOBBY") throw new Error("이미 시작되었습니다.");
 
+  if (speed && speed in BOT_THINK_MS_BY_SPEED) {
+    room.botThinkMs = BOT_THINK_MS_BY_SPEED[speed];
+  }
   room.state = createGame(room.players.map((p) => ({ id: p.id, name: p.name })));
   // "복불복" 시작 — 혼자하기(localMode.ts)와 동일하게, 턴 순서(회전 방향) 자체는
   // 참가 순서대로 고정하되 누가 맨 처음 낼지는 매 게임 무작위로 정한다. 방장이
