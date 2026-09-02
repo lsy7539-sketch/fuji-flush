@@ -98,7 +98,7 @@ export function renderBoard(app: HTMLElement, view: PlayerFacingState, callbacks
         <div class="opponent-count">${p.handSize}장</div>
         ${p.cards ? renderOpponentHand(p.cards) : renderMiniBackFan(p.handSize)}
         ${renderSeatCards(view, p.id)}
-        ${p.handSize === 1 ? `<span class="last-card-flag">1장 남음!</span>` : ""}
+        ${!p.isWinner && p.handSize <= 1 ? `<span class="last-card-flag">${p.handSize}장 남음!</span>` : ""}
       `;
       wrap.appendChild(chip);
       if (isCurrent) {
