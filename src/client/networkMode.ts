@@ -61,6 +61,13 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   let hostId = "";
   let lobbyPlayers: LobbyPlayer[] = [];
   let lastView: PlayerFacingState | null = null;
+  // Who's finished so far, in the order they did — the engine only tracks
+  // *whether* someone has won (view.players[].isWinner), not in what order,
+  // so this is built up here as it happens (recordNewWinners), same as
+  // localMode.ts's identical winnerOrder. Drives the "1등"/"2등" badges
+  // (render.ts's winnerBadge) — without it every winner just reads a
+  // generic "승리" instead of their actual placement.
+  let winnerOrder: string[] = [];
   // Set once a drawn card lands (see resolveNetworkMove) and cleared the
   // moment the viewer plays their own next card — mirrors localMode.ts's
   // identical newCardId, driving render.ts's ".is-new" marker the same way
@@ -168,6 +175,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     lastView = null;
     newCardId = null;
     animationChain = Promise.resolve();
+    winnerOrder = [];
     errorMessage = message;
     screen = "chooser";
     render();
@@ -188,6 +196,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     lastView = null;
     newCardId = null;
     animationChain = Promise.resolve();
+    winnerOrder = [];
     errorMessage = "";
     paused = false;
     screen = "chooser";
@@ -253,6 +262,16 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       : app.querySelector<HTMLElement>(`.opponent[data-player-id="${playerId}"]`);
   }
 
+  // Mirrors localMode.ts's identical function — appends anyone who just
+  // transitioned from not-a-winner to a-winner, in the order it's noticed.
+  function recordNewWinners(before: PlayerFacingState, after: PlayerFacingState): void {
+    for (const p of after.players) {
+      if (!p.isWinner || winnerOrder.includes(p.id)) continue;
+      const wasWinner = before.players.find((b) => b.id === p.id)?.isWinner;
+      if (!wasWinner) winnerOrder.push(p.id);
+    }
+  }
+
   // Mirrors localMode.ts's resolveMove, adapted for a redacted
   // PlayerFacingState (only the viewer's own hand has real card identities
   // — see computeDrawEventsForView) instead of a full GameState. Diffs
@@ -261,6 +280,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
   // ones until their fly animation lands, then settles on the real state.
   async function resolveNetworkMove(after: PlayerFacingState): Promise<void> {
     const before = lastView;
+    if (before) recordNewWinners(before, after);
     if (!before) {
       // Nothing to diff against (the very first view a fresh game/reconnect
       // sends) — just show it, same as localMode.ts never animates the
@@ -425,6 +445,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
           lastView = null;
           newCardId = null;
           animationChain = Promise.resolve();
+    winnerOrder = [];
           errorMessage = "";
           screen = "chooser";
           render();
@@ -605,6 +626,7 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
       message: errorMessage,
       paused,
       newCardId,
+      winnerOrder,
       onPlayCard: (_playerId, cardId) => {
         newCardId = null;
         send({ type: "playCard", cardId });
