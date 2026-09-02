@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { WebSocket } from "ws";
+import { chooseBotMove } from "../ai/botPlayer";
 import { GameError, createGame, playCard } from "../engine/gameEngine";
 import { toPlayerView } from "../engine/playerView";
 import type { GameState } from "../engine/types";
+import { BOT_NAME_POOL } from "../shared/botNames";
 import type { ClientMessage, RoomStatus, ServerMessage } from "../shared/protocol";
 import { pool } from "./db";
 import { generateRoomCode } from "./roomCode";
@@ -16,11 +18,20 @@ const MAX_PLAYERS = 8;
 // room isn't left stuck on a dead player's turn indefinitely.
 const RECONNECT_GRACE_MS = 60_000;
 
+// A brief "thinking" pause before a server-run AI seat plays — instant
+// would feel like a glitch to the real people watching. No per-viewer
+// speed setting to honor here (unlike 혼자하기's own timer), since a room
+// can have several real players with different preferences.
+const BOT_THINK_MS = 900;
+
 interface RoomPlayer {
   id: string;
   name: string;
   socket: WebSocket | null;
   connected: boolean;
+  // Server-run seat (see "addBot") — never has a real socket, never drops,
+  // never needs a reconnect token.
+  isBot: boolean;
   // Proves "I'm the same player who was in this seat" across a fresh
   // WebSocket after a drop — see the "reconnect" client message.
   reconnectToken: string;
@@ -96,13 +107,17 @@ function send(socket: WebSocket | null, message: ServerMessage): void {
   }
 }
 
+function toLobbyPlayers(room: Room) {
+  return room.players.map((p) => ({ id: p.id, name: p.name, isBot: p.isBot }));
+}
+
 function broadcastLobby(room: Room): void {
   const message: ServerMessage = {
     type: "lobbyUpdate",
     roomCode: room.code,
     roomName: room.name,
     hostId: room.hostPlayerId,
-    players: room.players.map((p) => ({ id: p.id, name: p.name })),
+    players: toLobbyPlayers(room),
   };
   for (const p of room.players) send(p.socket, message);
 }
@@ -215,6 +230,10 @@ function handleMessage(socket: WebSocket, message: ClientMessage): void {
       return reconnect(socket, message.roomCode, message.token);
     case "leaveGame":
       return leaveGame(socket);
+    case "addBot":
+      return addBot(socket);
+    case "removeBot":
+      return removeBot(socket, message.playerId);
     case "startGame":
       return startGame(socket);
     case "playCard":
@@ -233,7 +252,15 @@ function createRoom(socket: WebSocket, playerName: string, roomName: string | un
     name: roomName?.trim() || `${playerName || "Player"}의 방`,
     hostPlayerId: playerId,
     players: [
-      { id: playerId, name: playerName || "Player", socket, connected: true, reconnectToken, disconnectTimer: null },
+      {
+        id: playerId,
+        name: playerName || "Player",
+        socket,
+        connected: true,
+        isBot: false,
+        reconnectToken,
+        disconnectTimer: null,
+      },
     ],
     state: null,
     status: "LOBBY",
@@ -257,6 +284,7 @@ function joinRoom(socket: WebSocket, roomCode: string, playerName: string): void
     name: playerName || "Player",
     socket,
     connected: true,
+    isBot: false,
     reconnectToken,
     disconnectTimer: null,
   });
@@ -288,7 +316,7 @@ function reconnect(socket: WebSocket, roomCode: string, token: string): void {
     youAre: player.id,
     hostId: room.hostPlayerId,
     status: room.status,
-    players: room.players.map((p) => ({ id: p.id, name: p.name })),
+    players: toLobbyPlayers(room),
   });
   if (room.state) {
     send(socket, { type: "stateUpdate", view: toPlayerView(room.state, player.id) });
@@ -307,6 +335,82 @@ function leaveGame(socket: WebSocket): void {
   }
 }
 
+// First unused name in the shared idol pool; once that's exhausted (a full
+// 8-seat room could in principle want more bots than the pool has names
+// for) falls back to a plain numbered label rather than erroring out.
+function pickBotName(room: Room): string {
+  const taken = new Set(room.players.map((p) => p.name));
+  const free = BOT_NAME_POOL.find((name) => !taken.has(name));
+  if (free) return free;
+  let n = 1;
+  while (taken.has(`AI ${n}`)) n++;
+  return `AI ${n}`;
+}
+
+function addBot(socket: WebSocket): void {
+  const found = findRoomBySocket(socket);
+  if (!found) throw new Error("참가한 방이 없습니다.");
+  const { room, player } = found;
+  if (room.hostPlayerId !== player.id) throw new Error("방장만 AI를 추가할 수 있습니다.");
+  if (room.status !== "LOBBY") throw new Error("이미 시작된 게임입니다.");
+  if (room.players.length >= MAX_PLAYERS) throw new Error("방이 가득 찼습니다.");
+
+  room.players.push({
+    id: makePlayerId(),
+    name: pickBotName(room),
+    socket: null,
+    connected: true,
+    isBot: true,
+    reconnectToken: "",
+    disconnectTimer: null,
+  });
+  broadcastLobby(room);
+}
+
+function removeBot(socket: WebSocket, botId: string): void {
+  const found = findRoomBySocket(socket);
+  if (!found) throw new Error("참가한 방이 없습니다.");
+  const { room, player } = found;
+  if (room.hostPlayerId !== player.id) throw new Error("방장만 AI를 제거할 수 있습니다.");
+  if (room.status !== "LOBBY") throw new Error("이미 시작된 게임입니다.");
+  const target = room.players.find((p) => p.id === botId);
+  if (!target || !target.isBot) throw new Error("해당 AI를 찾을 수 없습니다.");
+
+  room.players = room.players.filter((p) => p.id !== botId);
+  if (room.hostPlayerId === botId) {
+    room.hostPlayerId = room.players[0]?.id ?? room.hostPlayerId;
+  }
+  broadcastLobby(room);
+}
+
+// After any move (a real player's, or a bot's own previous one), check
+// whether the seat that's now up is a server-run one and, if so, play it
+// a beat later — recursing afterward so a run of consecutive bot turns
+// (nothing but bots left, or a push-through handing the turn to another
+// bot) keeps going on its own until a real person's turn comes up.
+function maybeScheduleBotMove(room: Room): void {
+  if (!room.state || room.status !== "IN_PROGRESS") return;
+  const currentId = room.state.players[room.state.currentPlayerIndex]?.id;
+  const bot = room.players.find((p) => p.id === currentId);
+  if (!bot?.isBot) return;
+
+  setTimeout(() => {
+    // The room may have been torn down (departure, or the game already
+    // finished some other way) while this was waiting.
+    if (!rooms.has(room.code) || room.status !== "IN_PROGRESS" || !room.state) return;
+
+    const cardId = chooseBotMove(room.state, bot.id);
+    room.state = playCard(room.state, bot.id, cardId);
+
+    if (room.state.gameStatus === "FINISHED") {
+      room.status = "FINISHED";
+      recordMatch(room).catch((err) => console.error("전적 기록 실패:", err));
+    }
+    broadcastState(room, "stateUpdate");
+    maybeScheduleBotMove(room);
+  }, BOT_THINK_MS);
+}
+
 function startGame(socket: WebSocket): void {
   const found = findRoomBySocket(socket);
   if (!found) throw new Error("참가한 방이 없습니다.");
@@ -319,6 +423,7 @@ function startGame(socket: WebSocket): void {
   room.status = "IN_PROGRESS";
   room.startedAt = Date.now();
   broadcastState(room, "gameStarted");
+  maybeScheduleBotMove(room);
 }
 
 function handlePlayCard(socket: WebSocket, cardId: string | undefined): void {
@@ -346,6 +451,7 @@ function handlePlayCard(socket: WebSocket, cardId: string | undefined): void {
     recordMatch(room).catch((err) => console.error("전적 기록 실패:", err));
   }
   broadcastState(room, "stateUpdate");
+  maybeScheduleBotMove(room);
 }
 
 // Purely for fun (see render.ts's showAllianceBanner) — relayed to every

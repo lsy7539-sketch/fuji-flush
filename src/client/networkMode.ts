@@ -383,18 +383,24 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     container.className = "setup";
     const isHost = viewerId === hostId;
     const canStart = isHost && lobbyPlayers.length >= 3;
+    const canAddBot = isHost && lobbyPlayers.length < 8;
     container.innerHTML = `
       <h1>${roomName || "대기실"}</h1>
-      <p>친구는 같이하기 화면에서 이 방을 찾아 바로 참가할 수 있어요 — 초대 링크로 보내도 돼요 (3~8명 필요)</p>
+      <p>친구는 같이하기 화면에서 이 방을 찾아 바로 참가할 수 있어요 — 초대 링크로 보내도 돼요 (3~8명 필요, AI로 채워도 돼요)</p>
       ${errorMessage ? `<div class="message">${errorMessage}</div>` : ""}
       <button id="invite-btn">초대 링크 복사</button>
+      ${isHost ? `<button type="button" id="add-bot-btn" ${canAddBot ? "" : "disabled"}>🤖 AI 추가</button>` : ""}
       <ul class="lobby-players">
         ${lobbyPlayers
           .map(
-            (p) =>
-              `<li>${p.name}${p.id === hostId ? " (방장)" : ""}${
-                p.id === viewerId ? " (나)" : ""
-              }</li>`,
+            (p) => `
+              <li>
+                <span>${p.name}${p.isBot ? " 🤖" : ""}${p.id === hostId ? " (방장)" : ""}${
+                  p.id === viewerId ? " (나)" : ""
+                }</span>
+                ${isHost && p.isBot ? `<button type="button" class="remove-bot-btn" data-bot-id="${p.id}">제거</button>` : ""}
+              </li>
+            `,
           )
           .join("")}
       </ul>
@@ -411,6 +417,10 @@ export function startNetworkMode(app: HTMLElement, onExit: () => void): void {
     container
       .querySelector("#start-btn")
       ?.addEventListener("click", () => send({ type: "startGame" }));
+    container.querySelector("#add-bot-btn")?.addEventListener("click", () => send({ type: "addBot" }));
+    container.querySelectorAll<HTMLButtonElement>(".remove-bot-btn").forEach((btn) => {
+      btn.addEventListener("click", () => send({ type: "removeBot", playerId: btn.dataset.botId! }));
+    });
     container.querySelector("#invite-btn")!.addEventListener("click", async (e) => {
       const link = `${location.origin}/?room=${encodeURIComponent(roomCode)}`;
       const btn = e.currentTarget as HTMLButtonElement;

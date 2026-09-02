@@ -7,10 +7,9 @@ import { getSpeed, getTiming, type Timing } from "./speed";
 import type { GameState } from "../engine/types";
 import { renderBoard, showAllianceBanner } from "./render";
 import { getAllianceText, getNickname } from "./loginGate";
+import { BOT_NAME_POOL } from "../shared/botNames";
 
 const HUMAN_ID = "human";
-
-const BOT_NAME_POOL = ["카리나", "안유진", "장원영", "수지", "윈터", "미나미", "원이"];
 
 // describeMoveForBeginner's "getting flushed isn't purely bad" note only
 // fires when the replacement card drawn is at least this — deck.ts's

@@ -12,6 +12,12 @@ export type ClientMessage =
   // of waiting out the reconnect grace period for what isn't a dropped
   // connection at all.
   | { type: "leaveGame" }
+  // Host-only, LOBBY only — fills an open seat with a server-driven AI
+  // player (rooms.ts runs its turns with the same chooseBotMove used by
+  // 혼자하기, on a short delay). Lets a room start and play with as few as
+  // one real person in it.
+  | { type: "addBot" }
+  | { type: "removeBot"; playerId: string }
   | { type: "startGame" }
   | { type: "playCard"; cardId?: string }
   | { type: "shoutAlliance"; text?: string };
@@ -19,6 +25,7 @@ export type ClientMessage =
 export interface LobbyPlayer {
   id: string;
   name: string;
+  isBot: boolean;
 }
 
 export type RoomStatus = "LOBBY" | "IN_PROGRESS" | "FINISHED";

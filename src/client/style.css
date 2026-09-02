@@ -233,7 +233,8 @@ input:focus-visible {
 .setup #mode-network,
 .setup #mode-rulebook,
 .setup #join-btn,
-.setup #invite-btn {
+.setup #invite-btn,
+.setup #add-bot-btn {
   background: var(--panel);
   color: var(--text);
 }
@@ -557,11 +558,35 @@ input:focus-visible {
 }
 
 .lobby-players li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
   background: var(--overlay-soft);
   border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0.55rem 0.8rem;
   font-size: 0.9rem;
+}
+
+/* .lobby-players prefixed (not bare .remove-bot-btn) — .setup button's own
+   padding/font-size (0,1,1 specificity) would otherwise beat a
+   single-class selector here, the same trap noted elsewhere in this file
+   (.speed-dot, .icon-refresh-btn). */
+.lobby-players .remove-bot-btn {
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 2px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.lobby-players .remove-bot-btn:hover {
+  background: var(--overlay-mid);
 }
 
 /* ---------- board ---------- */
